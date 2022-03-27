@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+"""
+
+"""
+
+__author__ = "Federico Tambara"
+__license__ = "MIT"
+
 class UserInterface(object):
     """
     Middle man between User and the rest of the program
@@ -57,3 +65,11 @@ class IngrDbInterface(object):
         Consults database to see if string is present in the database
         """
         ...
+
+def main():
+    """ Main entry point of the app """
+
+
+if __name__ == "__main__":
+    """ This is executed when run from the command line """
+    main()
