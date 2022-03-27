@@ -19,7 +19,7 @@ class TestRecipeLoading(unittest.TestCase):
         """
         processor = IngrProcessor()
         expected_ingr_list = [
-            ['carote', 'tahina', 'aglio', 'paprika', 'erba cipollina', 'olio',
+            ['carota', 'tahina', 'aglio', 'paprika', 'erba cipollina', 'olio',
             'aceto', 'sale', 'pepe'],
             ['asparago', 'burro', 'limone', 'sale'],
             ['merluzzo', 'pangrattato', 'vino', 'limone', 'prezzemolo',
