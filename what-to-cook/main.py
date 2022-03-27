@@ -23,7 +23,7 @@ class Loader(object):
     def __init__(self):
         ...
     
-    def read_recipes(recipe_list):
+    def read_recipes(self, recipe_list):
         """
         Read the CSV file from RECIPES_TO_PROCESS_FILE_LOC
         and call the Processor to extract the ingredients out of each entry.
@@ -32,7 +32,7 @@ class Loader(object):
         """
         ...
 
-class IngredientProcessor(object):
+class IngrProcessor(object):
     """
     Extract the ingredient out of a string line, communicating with the
     ingredient database
@@ -41,7 +41,7 @@ class IngredientProcessor(object):
     def __init__(self):
         ...
     
-    def extract_ingredient(line: str):
+    def extract_ingredient(self, line: str):
         """
         Extract the first ingredient found in line.
         Ingredients have priority by the number of words they contain
