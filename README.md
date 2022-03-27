@@ -9,7 +9,8 @@ What to Cook is a small project that intents to help me get ideas for what to co
 - [ ] Add recipe loading (pre loaded dictionary only).
 - [ ] Add dictionary expanding feature.
 - [ ] Add search by ingredients.
-- [ ] Add UI (Qt)
+- [ ] Add UI (Qt).
+- [ ] Package and update readme.
 
 ### Some ideas
 - [ ] Add season tagging
