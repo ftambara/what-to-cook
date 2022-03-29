@@ -7,6 +7,7 @@ __author__ = "Federico Tambara"
 __license__ = "MIT"
 
 import sqlite3
+import os
 
 
 class UserInterface(object):
@@ -26,42 +27,32 @@ class Loader(object):
     def __init__(self):
         self.ingr_to_load = []
     
-    def read_recipes(self, recipe_list):
+    def read_recipes(self):
         """
         Read the CSV file from RECIPES_TO_PROCESS_FILE_LOC
         and call the Processor to extract the ingredients out of each entry.
         Store the recipes of which it has no doubts on the database.
         Return tuple of ints (new_recipes, duplicate, doubts, errors)?
         """
-        ...
+        project_path = os.path.dirname(os.path.abspath(__file__))
+        recipes_file = project_path + '/../recipes-to-load.csv'
+        with open(recipes_file) as f:
+            for line in f:
+                # Ignore lines starting with '#' character.
+                if line.strip()[0] == '#':
+                    continue
+                else:
+                    title, link, *ingredients_raw = line.split(',')
+                    print(f"Title: {title}")
+                    print(f"Link: {link}")
+                    for ingr in ingredients_raw:
+                        print(f" - {ingr}")
+                    print("\n")
     
-
-class IngrProcessor(object):
-    """
-    Extract the ingredient out of a string line, communicating with the
-    ingredient database
-    """
-    
-    def __init__(self):
-        ...
-    
-    def extract_ingredient(self, line: str):
-        """
-        Extract the first ingredient found in line.
-        Ingredients have priority by the number of words they contain
-        for example 'spring onion' has priority over 'onion'
-        Return extracted ingredient
-        """
-        ... # get longest ingr
-        ... # parse line in descending length window
-        ... # return first found match
-        ... # if no match, raise exception
-
 class IngrDbInterface(object):
     """Communicate with the ingredient database."""
 
     def __init__(self):
-        import os
 
         project_path = os.path.dirname(os.path.abspath(__file__))
         
@@ -76,9 +67,7 @@ class IngrDbInterface(object):
         """
         Load ingredients from ingr_list.
         Those already present are ignored.
-        """
-        import os
-        
+        """        
 
         project_path = os.path.dirname(os.path.abspath(__file__))
         txt_file = project_path+'/../ingredients.txt'
@@ -116,11 +105,7 @@ class IngrDbInterface(object):
 
         results = self.cur.fetchall()                                
         assert len(results) in (0, 1)
-        for result in results:
-            print(result)
-        print(len(results))
         return True if len(results) == 1 else False
-
         
 
     def _stem_ingredient(self, ingr: str):
@@ -148,13 +133,68 @@ class IngrDbInterface(object):
             print(row)
     
 
+class IngrProcessor(object):
+    """
+    Extract the ingredient out of a string line, communicating with the
+    ingredient database
+    """
+    
+    def __init__(self):
+        ...
+    
+    def extract_ingredient(self, line: str, model: IngrDbInterface):
+        """
+        Extract the first ingredient found in line.
+        Ingredients have priority by the number of words they contain
+        for example 'spring onion' has priority over 'onion'
+        Return extracted ingredient
+        """
+        import re
+        
+        # Tokenize line
+        #   Replace apostrophes to prepare line for splitting
+        line_list = line.replace('`', ' ')
+        line_list = line_list.replace("'", ' ')
+        #   Split cleaned up line
+        line_list = line_list.lower().split()
+        
+        # Parse line in descending number of words at a time
+        from typing import Iterator
+        def window_composition(list_str: str) -> Iterator[str]:
+            """
+            Return generator composing list into generator of strings.
+            Each returned string is made from joining list items without
+            changing its order. Starts from longest to shortest, left to right.
+            """
+            for words_at_a_time in range(len(list_str), 0, -1):
+                for index in range(len(list_str) - words_at_a_time +1):
+                    yield ' '.join(list_str[index:words_at_a_time+index])
+
+        found_match = False
+        for word in window_composition(line_list):
+            print(f' Trying to find "{word}"')
+            if model.is_ingr_ind_db(word):
+                print(f"    {word} found.")
+                found_match = True
+                break
+        
+        # Return first found match
+        if found_match:
+            return word
+        # If no match, raise exception
+        else:
+            raise ValueError('line did not contain any known ingredient')
+
 def main():
     """ Main entry point of the app """
     ingr_db_inter = IngrDbInterface()
     ingr_db_inter.load_ingredients()
-    ingredient = 'Pomodoro'
-    print(f'Is "{ingredient}" in the database? '
-        f'{ingr_db_inter.is_ingr_ind_db(ingredient)}')
+    # ingredient = 'Pomodoro'
+    # print(f'Is "{ingredient}" in the database? '
+    #     f'{ingr_db_inter.is_ingr_ind_db(ingredient)}')
+
+    loader = Loader()
+    loader.read_recipes()
 
 if __name__ == "__main__":
     """ This is executed when run from the command line """

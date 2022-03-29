@@ -4,7 +4,8 @@ https://docs.python.org/3/library/unittest.html
 """
 
 import unittest
-from main import IngrProcessor
+import os
+from main import IngrDbInterface, IngrProcessor
 from main import Loader
 
 
@@ -19,13 +20,15 @@ class TestRecipeLoading(unittest.TestCase):
         """
         processor = IngrProcessor()
         expected_ingr_list = [
-            ['carota', 'tahina', 'aglio', 'paprika', 'erba cipollina', 'olio',
+            ['carote', 'tahina', 'aglio', 'paprika', 'erba cipollina', 'olio',
             'aceto', 'sale', 'pepe'],
-            ['asparago', 'burro', 'limone', 'sale'],
+            ['asparagi', 'burro', 'limone', 'sale'],
             ['merluzzo', 'pangrattato', 'vino', 'limone', 'prezzemolo',
             'salvia', 'rosmarino', 'olio', 'sale', 'pepe']
         ]
-        with open('test-recipes-to-load.csv') as f:
+        directory = os.path.dirname(os.path.abspath(__file__))
+        filename = directory + '/test-recipes-to-load.csv'
+        with open(filename) as f:
             lines = f.readlines()
             index = 0
         for line in lines:
@@ -34,12 +37,15 @@ class TestRecipeLoading(unittest.TestCase):
             else:
                 ingr_list = []
                 raw_ingr_list = line.split(sep=',')
+
                 # Skip title and URL
                 raw_ingr_list = raw_ingr_list[2:]
 
                 # Process every entry for that line
                 for entry in raw_ingr_list:
-                    ingr_list.append(processor.extract_ingredient(entry))
+                    print("$$", entry)
+                    ingr_list.append(processor.extract_ingredient(entry,
+                        IngrDbInterface()))
                 # Compare with expected ingredients for that line
                 self.assertListEqual(expected_ingr_list[index], ingr_list)
 
