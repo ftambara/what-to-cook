@@ -24,7 +24,7 @@ class Loader(object):
     """
     
     def __init__(self):
-        ...
+        self.ingr_to_load = []
     
     def read_recipes(self, recipe_list):
         """
@@ -34,6 +34,7 @@ class Loader(object):
         Return tuple of ints (new_recipes, duplicate, doubts, errors)?
         """
         ...
+    
 
 class IngrProcessor(object):
     """
@@ -70,14 +71,14 @@ class IngrDbInterface(object):
             +'(name text primary key'
             +');')
         self.con.commit()
-        
-        
-    def load_new_ingredients(self):
+
+    def load_ingredients(self):
         """
-        Load new ingredients from txt_file into database.
+        Load ingredients from ingr_list.
+        Those already present are ignored.
         """
         import os
-
+        
 
         project_path = os.path.dirname(os.path.abspath(__file__))
         txt_file = project_path+'/../ingredients.txt'
@@ -89,13 +90,14 @@ class IngrDbInterface(object):
         with open(txt_file, 'r+') as f:
             for line in f:
                 line = line.strip()
+                line_striped = self._stem_ingredient(line)
                 self.cur.execute('select name from ingredients '
-                                 +'where name = (?)', (line,))
+                                 +'where name = (?)', (line_striped,))
                 if not self.cur.fetchall():
                     self.cur.execute('insert into ingredients(name)'
-                                     +'values (?);', (line,))
+                                     +'values (?);', (line_striped,))
                     self.con.commit()
-                    newly_added.append(line)
+                    newly_added.append(f'{line_striped} ({line})')
         
         for ingr in newly_added:
             print(f'  - {ingr}')
@@ -104,16 +106,33 @@ class IngrDbInterface(object):
         else:
             print(f'{len(newly_added)} new in total.')
         
+    def is_ingr_ind_db(self, ingredient: str):
+        # TODO to think about. ingredient.stem should return its stem.
+        ingredient = self._stem_ingredient(ingredient)
+        _ = self.cur.execute('select name '
+                                'from ingredients '
+                                'where name = (?)',
+                                (ingredient,))
+
+        results = self.cur.fetchall()                                
+        assert len(results) in (0, 1)
+        for result in results:
+            print(result)
+        print(len(results))
+        return True if len(results) == 1 else False
+
+        
+
+    def _stem_ingredient(self, ingr: str):
+        """Always save ingredients' stems into the database, not full word."""
+        return self._stem_ingredients([ingr])[0]
     
-    def get_longest_ingr(self):
-        """Return number of words in the longest ingredient stored"""
-        ...
-    
-    def is_ingr_in_db(self, string):
-        """
-        Consults database to see if string is present in the database
-        """
-        ...
+    def _stem_ingredients(self, ingr_list: list[str]):
+        """Always save ingredients' stems into the database, not full word."""
+        import snowballstemmer as sb
+
+        stemmer = sb.stemmer('italian')
+        return stemmer.stemWords(ingr_list)
     
     def load_test_data(self):
         try: 
@@ -132,7 +151,10 @@ class IngrDbInterface(object):
 def main():
     """ Main entry point of the app """
     ingr_db_inter = IngrDbInterface()
-    ingr_db_inter.load_new_ingredients()
+    ingr_db_inter.load_ingredients()
+    ingredient = 'Pomodoro'
+    print(f'Is "{ingredient}" in the database? '
+        f'{ingr_db_inter.is_ingr_ind_db(ingredient)}')
 
 if __name__ == "__main__":
     """ This is executed when run from the command line """
