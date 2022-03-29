@@ -50,6 +50,14 @@ class TestRecipeLoading(unittest.TestCase):
                 self.assertListEqual(expected_ingr_list[index], ingr_list)
 
                 index += 1
+
+    def test_recipe_fetching(self):
+        """
+        Make program load known recipes, then search recipes for each
+        ingredient present in the ones that have been loaded.
+        Check if recipes obtained through search are the correct ones.
+        """
+        ...
             
 
 
