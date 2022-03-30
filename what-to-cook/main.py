@@ -3,6 +3,8 @@
 
 """
 
+#BUG loader loads newline characters if alone (empty row in ingredients.txt)
+
 __author__ = "Federico Tambara"
 __license__ = "MIT"
 
@@ -18,19 +20,37 @@ class UserInterface(object):
     def __init__(self):
         ...
     
-
-class IngrDbInterface(object):
-    """Communicate with the ingredient database."""
-
-    def __init__(self):
+class DbInterface(object):
+    """
+    Do not instantiate directly. Use subclasses.
+    """
+    def __init__(self) -> None:
         project_path = os.path.dirname(os.path.abspath(__file__))
         
         self.con = sqlite3.connect(project_path + '/recipes.db')
         self.cur = self.con.cursor()
+        self.cur.execute('create table if not exists recipes '
+            '(recipe_id integer primary key autoincrement, '
+            'title text, '
+            'url text unique '
+            ');')
+
         self.cur.execute('create table if not exists ingredients'
             +'(name text primary key'
             +');')
         self.con.commit()
+
+        self.cur.execute('create table if not exists recipes_ingredients '
+            '(recipe_id integer, '
+            'ingr_name text, '
+            'primary key (recipe_id, ingr_name), '
+            'foreign key (recipe_id) references recipes(recipe_id), '
+            'foreign key (ingr_name) references ingredients(name)'
+            ');')
+        self.con.commit()
+
+class IngrDbInterface(DbInterface):
+    """Communicate with the ingredient database."""
 
     def store_ingredient(self, ingredient: str):
         """
@@ -72,20 +92,6 @@ class IngrDbInterface(object):
         results = self.cur.fetchall()                                
         assert len(results) in (0, 1)
         return True if len(results) == 1 else False
-    
-    def load_test_data(self):
-        try: 
-            self.cur.execute('''CREATE TABLE stocks
-               (date text, trans text, symbol text, qty real, price real)''')
-        except sqlite3.OperationalError:
-            return
-        self.cur.execute("INSERT INTO stocks VALUES ('2006-01-05','BUY','RHAT',50,35.14)")
-        self.con.commit()
-
-    def retrieve_test_data(self):
-        for row in self.cur.execute('SELECT * FROM stocks ORDER BY price'):
-            print(row)
-    
 
 class IngrProcessor(object):
     """
@@ -106,7 +112,6 @@ class IngrProcessor(object):
 
         If stemmed is true, return stem of found ingredient
         """
-        import re
         
         # Tokenize line
         #   Replace apostrophes to prepare line for splitting
@@ -129,70 +134,75 @@ class IngrProcessor(object):
 
         found_match = False
         for word in window_composition(line_list):
-            if model.is_ingr_ind_db(self._stem_ingredient(word)):
+            if model.is_ingr_ind_db(self.stem_ingredient(word)):
                 found_match = True
                 break
         
         # Return first found match
         if found_match:
             if stemmed:
-                return self._stem_ingredient(word)
+                return self.stem_ingredient(word)
             else:
                 return word
         # If no match, raise exception
         else:
             raise ValueError('line did not contain any known ingredient')
 
-    def _stem_ingredient(self, ingr: str):
-        """Always save ingredients' stems into the database, not full word."""
-        return self._stem_ingredients([ingr])[0]
+    def stem_ingredient(self, ingr: str):
+        """Return stem of ingr"""
+        return self.stem_ingredients([ingr.strip()])[0]
     
-    def _stem_ingredients(self, ingr_list: list[str]):
-        """Always save ingredients' stems into the database, not full word."""
+    def stem_ingredients(self, ingr_list: list[str]):
+        """
+        Return list of stems of the elements of ingr_list.
+        Make sure ingredients are striped.
+        """
         import snowballstemmer as sb
 
         stemmer = sb.stemmer('italian')
         return stemmer.stemWords(ingr_list)
 
 
-class RecipeDbInterface(object):
-    def __init__(self) -> None:
-        # TODO base DbInterface class, make ingr and recipe subclasses
-        # put database creation in DbInterface constructor, 
-        project_path = os.path.dirname(os.path.abspath(__file__))
-        
-        self.con = sqlite3.connect(project_path + '/recipes.db')
-        self.cur = self.con.cursor()
-        self.cur.execute('create table if not exists recipes '
-            '(recipe_id integer primary key autoincrement, '
-            'title text, '
-            'url text unique '
-            ');')
-        self.con.commit()
-        
-        self.cur.execute('create table if not exists recipes_ingredients '
-            '(recipe_id integer, '
-            'ingr_name text, '
-            'primary key (recipe_id, ingr_name), '
-            'foreign key (recipe_id) references recipes(recipe_id), '
-            'foreign key (ingr_name) references ingredients(name)'
-            ');')
-        self.con.commit()
+class RecipeDbInterface(DbInterface):
     
     def store_recipe(self, title: str, url: str, ingr_list: list[str]):
         """
         Store recipe into database.
         Raise exception if already present.
         """
-        self.cur.execute('insert into recipes(title, url) '
-            'values (?, ?);', (title, url))
-        self.con.commit()
+        # Store recipe title and url into recipes
+        did_store = False
+        try:
+            self.cur.execute('insert into recipes(title, url) '
+                'values (?, ?);', (title, url))
+            self.con.commit()
+            did_store = True
+        except sqlite3.IntegrityError:
+            return did_store
+        
+        # Get the recipe autogenereted id
         self.cur.execute('select last_insert_rowid();')
-        last_recipe_id = self.cur.fetchone()
+        last_recipe_id = self.cur.fetchone()[0]
+        
+        # Associate each ingredient with the obtained recipe id
         for ingr in ingr_list:
             self.cur.execute(
                 'insert into recipes_ingredients(recipe_id, ingr_name) '
                 'values(?, ?);', (last_recipe_id, ingr))
+            self.con.commit()
+        
+        return did_store
+
+    def print_stored_recipes(self):
+        self.cur.execute('select r.title, i.name '
+                         'from recipes r '
+                         'inner join recipes_ingredients ri '
+                         '  on r.recipe_id = ri.recipe_id '
+                         'inner join ingredients i '
+                         '  on ri.ingr_name = i.name')
+        print("\n")
+        for row in self.cur.fetchall():
+            print(row)
 
 class Loader(object):
     """
@@ -215,6 +225,8 @@ class Loader(object):
         """
         project_path = os.path.dirname(os.path.abspath(__file__))
         recipes_file = project_path + '/../recipes-to-load.csv'
+        
+        print('\nLoading recipes:')
         with open(recipes_file) as f:
             for line in f:
                 # Ignore lines starting with '#' character.
@@ -222,25 +234,36 @@ class Loader(object):
                     continue
                 else:
                     title, url, *ingredients_raw = line.split(',')
-                    print(f"Title: {title}")
-                    print(f"URL: {url}")
+                    print('\n', end='')
+                    print(f'  Title: {title}')
+                    print(f'  URL: {url}')
                     for ingr in ingredients_raw:
-                        print(f" - {ingr}")
-                    print("\n")
+                        print(f'   - {ingr.strip()}')
+                        #print(f'   - \{self.processor.extract_ingredient(ingr, self.ingr_model)}')
                     ingredients_proc = []
+                    ingredients_not_loaded = []
                     for ingr in ingredients_raw:
                         try:
-                            ingredients_proc.append(
-                                self.processor.extract_ingredient(
-                                    ingr, self.ingr_model, stemmed=True))
+                            ingr = self.processor.extract_ingredient(
+                                    ingr, self.ingr_model, stemmed=True)
+                            ingredients_proc.append(ingr)
                         except ValueError:
+                            # Ingredient could not be extracted.
                             ingredients_proc.append(None)
-                    
+                            ingredients_not_loaded.append(ingr)
+
                     # If all ingredients were recognized
                     if None not in ingredients_proc:
-                        self.recipe_model.store_recipe(title, url, 
+                        did_store = self.recipe_model.store_recipe(title, url, 
                             ingredients_proc)
+                        if did_store:
+                            print('\n  Recipe loaded successfully.')
+                        else:
+                            print('\n  Recipe ignored, URL already present.')
                     else:
+                        print('\n  Recipe not loaded. Ingredients not '
+                            'recognized:\n'
+                            f'{ingredients_not_loaded}')
                         ... # TODO Stack up doubts to be consulted to the user.
 
     def store_ingredients(self):
@@ -256,13 +279,14 @@ class Loader(object):
         print('Loading ingredients:')
 
         with open(txt_file, 'r+') as f:
-            for line in f:
-                line = line.strip()
-                if self.ingr_model.store_ingredient(line):
-                    newly_added.append(line)
+            for ingr in f:
+                ingr = ingr.strip()
+                ingr_stem = self.processor.stem_ingredient(ingr)
+                if self.ingr_model.store_ingredient(ingr_stem):
+                    newly_added.append((ingr_stem, ingr))
 
-        for ingr in newly_added:
-            print(f'  - {ingr}')
+        for stem, ingr in newly_added:
+            print(f'  - {stem} ({ingr})')
         if not newly_added:
             print('No newly added ingredients.')
         else:
@@ -279,7 +303,8 @@ def main():
 
     loader = Loader(ingr_processor, ingr_db_inter, recipe_db_inter)
     loader.store_ingredients()
-    #loader.read_recipes()
+    loader.read_recipes()
+    recipe_db_inter.print_stored_recipes()
 
 if __name__ == "__main__":
     """ This is executed when run from the command line """
