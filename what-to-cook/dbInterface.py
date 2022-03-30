@@ -31,7 +31,7 @@ class Base(object):
         self.con.commit()
 
 class Ingredients(Base):
-    """Communicate with the ingredient database."""
+    """Communicate with the ingredients table."""
 
     def store_ingredient(self, ingredient: str):
         """
@@ -75,7 +75,7 @@ class Ingredients(Base):
         return True if len(results) == 1 else False
 
 class Recipes(Base):
-    
+    """Communicate with recipes and recipes_ingredients tables."""
     def store_recipe(self, title: str, url: str, ingr_list: list[str]):
         """
         Store recipe into database.
