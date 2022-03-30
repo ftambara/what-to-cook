@@ -3,8 +3,6 @@
 
 """
 
-#BUG loader loads newline characters if alone (empty row in ingredients.txt)
-
 __author__ = "Federico Tambara"
 __license__ = "MIT"
 
@@ -20,7 +18,7 @@ class UserInterface(object):
     def __init__(self):
         ...
     
-class DbInterface(object):
+class BaseDbInterface(object):
     """
     Do not instantiate directly. Use subclasses.
     """
@@ -31,8 +29,8 @@ class DbInterface(object):
         self.cur = self.con.cursor()
         self.cur.execute('create table if not exists recipes '
             '(recipe_id integer primary key autoincrement, '
-            'title text, '
-            'url text unique '
+            'title text unique, '
+            'url text unique'
             ');')
 
         self.cur.execute('create table if not exists ingredients'
@@ -49,7 +47,7 @@ class DbInterface(object):
             ');')
         self.con.commit()
 
-class IngrDbInterface(DbInterface):
+class IngrDbInterface(BaseDbInterface):
     """Communicate with the ingredient database."""
 
     def store_ingredient(self, ingredient: str):
@@ -162,8 +160,11 @@ class IngrProcessor(object):
         stemmer = sb.stemmer('italian')
         return stemmer.stemWords(ingr_list)
 
+    def check_chars(self, line: str) -> list[str]:
+        return [char.isalpha() or char == ' ' for char in line]
 
-class RecipeDbInterface(DbInterface):
+
+class RecipeDbInterface(BaseDbInterface):
     
     def store_recipe(self, title: str, url: str, ingr_list: list[str]):
         """
@@ -259,7 +260,8 @@ class Loader(object):
                         if did_store:
                             print('\n  Recipe loaded successfully.')
                         else:
-                            print('\n  Recipe ignored, URL already present.')
+                            print('\n  Recipe ignored, title or URL already '
+                                'present.')
                     else:
                         print('\n  Recipe not loaded. Ingredients not '
                             'recognized:\n'
@@ -281,9 +283,16 @@ class Loader(object):
         with open(txt_file, 'r+') as f:
             for ingr in f:
                 ingr = ingr.strip()
-                ingr_stem = self.processor.stem_ingredient(ingr)
-                if self.ingr_model.store_ingredient(ingr_stem):
-                    newly_added.append((ingr_stem, ingr))
+                if len(ingr.split()) == 0:
+                    continue
+                char_checklist = self.processor.check_chars(ingr)
+                if all(char_checklist):
+                    ingr_stem = self.processor.stem_ingredient(ingr)
+                    if self.ingr_model.store_ingredient(ingr_stem):
+                        newly_added.append((ingr_stem, ingr))
+                else:
+                    print(f'"{ingr}" contains invalid characters '
+                    f'({ingr[char_checklist.index(False)]})')
 
         for stem, ingr in newly_added:
             print(f'  - {stem} ({ingr})')
