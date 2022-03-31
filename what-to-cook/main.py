@@ -7,7 +7,7 @@ __author__ = "Federico Tambara"
 __license__ = "MIT"
 
 import os
-import dbInterface
+import db_interface
 
 
 class UserInterface(object):
@@ -28,7 +28,7 @@ class IngrProcessor(object):
     def __init__(self):
         ...
     
-    def extract_ingredient(self, line: str, model: dbInterface.Ingredients,
+    def extract_ingredient(self, line: str, model: db_interface.Ingredients,
     stemmed=False):
         """
         Extract the first ingredient found in line.
@@ -99,7 +99,9 @@ class Loader(object):
     """
     
     def __init__(self, processor: IngrProcessor,
-        ingr_model: dbInterface.Ingredients, recipe_model: dbInterface.Recipes):
+        ingr_model: db_interface.Ingredients,
+        recipe_model: db_interface.Recipes):
+        
         self.processor = processor
         self.ingr_model = ingr_model
         self.recipe_model = recipe_model
@@ -188,10 +190,27 @@ class Loader(object):
         else:
             print(f'{len(newly_added)} new in total.')
 
+
+class Searcher(object):
+    def __init__(self, processor: IngrProcessor,
+        ingr_model: db_interface.Ingredients,
+        recipe_model: db_interface.Recipes) -> None:
+        
+        self.processor = processor
+        self.ingr_model = ingr_model
+        self.recipe_model = recipe_model
+    
+    def fetch_recipes(self, ingr_included, ingr_excluded):
+        """
+        Return all recipes stored in the database that contain
+        ingr_included and don't contain ingr_excluded
+        """
+
+
 def main():
     """ Main entry point of the app """
-    ingr_db_inter = dbInterface.Ingredients()
-    recipe_db_inter = dbInterface.Recipes()
+    ingr_db_inter = db_interface.Ingredients()
+    recipe_db_inter = db_interface.Recipes()
     ingr_processor = IngrProcessor()
     # ingredient = 'Pomodoro'
     # print(f'Is "{ingredient}" in the database? '
