@@ -1,5 +1,8 @@
+# TODO: define field and table names outside of execute statements - DRY
+
 import sqlite3
 import os
+import recipes
 
 class Base(object):
     """
@@ -103,14 +106,15 @@ class Recipes(Base):
             self.con.commit()
         
         return did_store
-
-    def print_stored_recipes(self):
-        self.cur.execute('select r.title, i.name '
-                         'from recipes r '
-                         'inner join recipes_ingredients ri '
-                         '  on r.recipe_id = ri.recipe_id '
-                         'inner join ingredients i '
-                         '  on ri.ingr_name = i.name')
-        print("\n")
-        for row in self.cur.fetchall():
-            print(row)
+    
+    def fetch_recipes(self, ingr_included: list[str] = [],
+        ingr_excluded: list[str] = []) -> list:
+        """
+        Assumes ingredients lists are stemmed.
+        Return all recipes stored in the database that contain
+        ingr_included and don't contain ingr_excluded.
+        """
+        
+        # Get id, title and url from every recipe that matches the query            
+        # For each of those recipes, run another query that returns every
+        # ingredient in that recipe

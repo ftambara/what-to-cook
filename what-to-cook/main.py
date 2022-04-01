@@ -106,7 +106,7 @@ class Loader(object):
         self.ingr_model = ingr_model
         self.recipe_model = recipe_model
     
-    def read_recipes(self):
+    def load_recipes(self):
         """
         Read the CSV file from RECIPES_TO_PROCESS_FILE_LOC
         and call the Processor to extract the ingredients out of each entry.
@@ -218,8 +218,8 @@ def main():
 
     loader = Loader(ingr_processor, ingr_db_inter, recipe_db_inter)
     loader.store_ingredients()
-    loader.read_recipes()
-    recipe_db_inter.print_stored_recipes()
+    loader.load_recipes()
+    recipe_db_inter.fetch_recipes(ingr_included=('limon',), ingr_excluded=('prezzemol',))
 
 if __name__ == "__main__":
     """ This is executed when run from the command line """
