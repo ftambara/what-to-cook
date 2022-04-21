@@ -5,7 +5,8 @@ https://docs.python.org/3/library/unittest.html
 
 import unittest
 import os
-from main import IngrDbInterface, IngrProcessor
+from main import IngrProcessor
+from db import Interface
 from main import Loader
 
 
@@ -45,7 +46,7 @@ class TestRecipeLoading(unittest.TestCase):
                 for entry in raw_ingr_list:
                     print("$$", entry)
                     ingr_list.append(processor.extract_ingredient(entry,
-                        IngrDbInterface()))
+                        Interface()))
                 # Compare with expected ingredients for that line
                 self.assertListEqual(expected_ingr_list[index], ingr_list)
 

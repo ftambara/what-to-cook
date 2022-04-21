@@ -7,14 +7,28 @@ __author__ = "Federico Tambara"
 __license__ = "MIT"
 
 import os
-import db_interface
+import re
+from typing import Iterator
+
+import db
+from definitions import Ingredient, Recipe
+
+
+def _concatenate_window(list_str: str) -> Iterator[str]:
+    """
+    Return generetor of strings by parsing list_str through a window of
+    decreasing number of words, starting from all present down to one.
+    """
+    for words_at_a_time in range(len(list_str), 0, -1):
+        for index in range(len(list_str) - words_at_a_time + 1):
+            yield ' '.join(list_str[index:words_at_a_time+index])
 
 
 class UserInterface(object):
     """
     Middle man between User and the rest of the program
     """
-    
+
     def __init__(self):
         ...
 
@@ -24,71 +38,47 @@ class IngrProcessor(object):
     Extract the ingredient out of a string line, communicating with the
     ingredient database
     """
-    
+
     def __init__(self):
         ...
-    
-    def extract_ingredient(self, line: str, model: db_interface.Ingredients,
-    stemmed=False):
+
+    def extract_ingredient(self, line: str, interface: db.Interface):
         """
         Extract the first ingredient found in line.
-        Ingredients have priority by the number of words they contain
-        for example 'spring onion' has priority over 'onion'
-        Return extracted ingredient
-
-        If stemmed is true, return stem of found ingredient
+        Ingredients with more words have priority.
+        For example if line = '100g of spring onion' would return
+        'spring onion' (if present in ingredients database) instead of just
+        'onion'.
+        Return first found match. If no match, raise exception
         """
-        
+
+        # # Tokenize line
+        # #   Replace apostrophes to prepare line for splitting
+        # line_list = line.replace('`', ' ')
+        # line_list = line_list.replace("'", ' ')
+        # #   Split cleaned up line
+        # line_list = line_list.lower().split()
+
+        # TODO Check and delete above
+
         # Tokenize line
-        #   Replace apostrophes to prepare line for splitting
-        line_list = line.replace('`', ' ')
-        line_list = line_list.replace("'", ' ')
-        #   Split cleaned up line
-        line_list = line_list.lower().split()
-        
+        word_list = re.split(r'\W+', line.lower().strip())
         # Parse line in descending number of words at a time
-        from typing import Iterator
-        def window_composition(list_str: str) -> Iterator[str]:
-            """
-            Return generator composing list into generator of strings.
-            Each returned string is made from joining list items without
-            changing its order. Starts from longest to shortest, left to right.
-            """
-            for words_at_a_time in range(len(list_str), 0, -1):
-                for index in range(len(list_str) - words_at_a_time +1):
-                    yield ' '.join(list_str[index:words_at_a_time+index])
 
-        found_match = False
-        for word in window_composition(line_list):
-            if model.is_ingr_ind_db(self.stem_ingredient(word)):
-                found_match = True
-                break
-        
-        # Return first found match
-        if found_match:
-            if stemmed:
-                return self.stem_ingredient(word)
-            else:
-                return word
-        # If no match, raise exception
-        else:
-            raise ValueError('line did not contain any known ingredient')
+        # Try to detect the longest ingredient first, so that "spring onion"
+        # has precedence over "onion"
 
-    def stem_ingredient(self, ingr: str):
-        """Return stem of ingr"""
-        return self.stem_ingredients([ingr.strip()])[0]
-    
-    def stem_ingredients(self, ingr_list: list[str]):
-        """
-        Return list of stems of the elements of ingr_list.
-        Make sure ingredients are striped.
-        """
-        import snowballstemmer as sb
+        for phrase in _concatenate_window(word_list):
+            if interface.is_ingr_in_db(phrase):
+                return phrase
 
-        stemmer = sb.stemmer('italian')
-        return stemmer.stemWords(ingr_list)
+        raise ValueError('line did not contain any known ingredient')
 
     def check_chars(self, line: str) -> list[str]:
+        """
+        Validate line caracters to see if they are allowed.
+        Return list of bools with validation result per character.
+        """
         return [char.isalpha() or char == ' ' for char in line]
 
 
@@ -97,15 +87,13 @@ class Loader(object):
     Responisble for loading recipes from a file, delegate ingredient
     extraction, and building list of doubts and errors to be handled later.
     """
-    
+
     def __init__(self, processor: IngrProcessor,
-        ingr_model: db_interface.Ingredients,
-        recipe_model: db_interface.Recipes):
-        
-        self.processor = processor
-        self.ingr_model = ingr_model
-        self.recipe_model = recipe_model
-    
+                 interface: db.Interface):
+
+        self._processor = processor
+        self._interface = interface
+
     def load_recipes(self):
         """
         Read the CSV file from RECIPES_TO_PROCESS_FILE_LOC
@@ -113,49 +101,56 @@ class Loader(object):
         Store the recipes of which it has no doubts on the database.
         Return tuple of ints (new_recipes, duplicate, doubts, errors)?
         """
-        project_path = os.path.dirname(os.path.abspath(__file__))
-        recipes_file = project_path + '/../recipes-to-load.csv'
-        
+
         print('\nLoading recipes:')
+
+        for line in self._read_recipe_line():
+            title, url, *ingredients_raw = line.split(',')
+            print('\n', end='')
+            print(f'  Title: {title}')
+            print(f'  URL: {url}')
+            print(f'Ingredients:\n')
+            for ingr in ingredients_raw:
+                print(f'   - {ingr.strip()}')
+
+            # Process ingredient list, check if all are recognized.
+            ingredients_proc = []
+            unrecognized_ingredient_entries = []
+            for ingr in ingredients_raw:
+                try:
+                    ingr = self._processor.extract_ingredient(
+                        ingr, self._interface)
+                    ingredients_proc.append(ingr)
+                except ValueError:
+                    # Ingredient could not be extracted.
+                    unrecognized_ingredient_entries.append(ingr)
+
+            if not unrecognized_ingredient_entries:
+                recipe = Recipe(title, url, ingredients_proc)
+                try:
+                    self._interface.store_recipe(recipe)
+                except ValueError:
+                    print('\n  Recipe ignored, title or URL already '
+                          'present.')
+                else:
+                    print('\n  Recipe loaded successfully.')
+            else:
+                print('\n  Recipe not loaded. Ingredients not '
+                      'recognized:\n'
+                      f'{unrecognized_ingredient_entries}')
+                # TODO Consult doubts to user, now or later.
+
+    def _read_recipe_line(self):
+        """Read recipes file and yield lines that aren't comments."""
+        project_path = os.path.dirname(os.path.abspath(__file__))
+        # TODO move paths to setup.py
+        recipes_file = project_path + '/../recipes-to-load.csv'
         with open(recipes_file) as f:
             for line in f:
-                # Ignore lines starting with '#' character.
                 if line.strip()[0] == '#':
                     continue
                 else:
-                    title, url, *ingredients_raw = line.split(',')
-                    print('\n', end='')
-                    print(f'  Title: {title}')
-                    print(f'  URL: {url}')
-                    for ingr in ingredients_raw:
-                        print(f'   - {ingr.strip()}')
-                        #print(f'   - \{self.processor.extract_ingredient(ingr, self.ingr_model)}')
-                    ingredients_proc = []
-                    ingredients_not_loaded = []
-                    for ingr in ingredients_raw:
-                        try:
-                            ingr = self.processor.extract_ingredient(
-                                    ingr, self.ingr_model, stemmed=True)
-                            ingredients_proc.append(ingr)
-                        except ValueError:
-                            # Ingredient could not be extracted.
-                            ingredients_proc.append(None)
-                            ingredients_not_loaded.append(ingr)
-
-                    # If all ingredients were recognized
-                    if None not in ingredients_proc:
-                        did_store = self.recipe_model.store_recipe(title, url, 
-                            ingredients_proc)
-                        if did_store:
-                            print('\n  Recipe loaded successfully.')
-                        else:
-                            print('\n  Recipe ignored, title or URL already '
-                                'present.')
-                    else:
-                        print('\n  Recipe not loaded. Ingredients not '
-                            'recognized:\n'
-                            f'{ingredients_not_loaded}')
-                        ... # TODO Stack up doubts to be consulted to the user.
+                    yield line
 
     def store_ingredients(self):
         """
@@ -163,43 +158,55 @@ class Loader(object):
         Those already present are ignored.
         """
         project_path = os.path.dirname(os.path.abspath(__file__))
-        txt_file = project_path+'/../ingredients.txt'
+        txt_file = project_path+'/../ingredients.txt'  # TODO move paths to setup.py
 
-        newly_added = []
+        to_add = []
 
         print('Loading ingredients:')
 
+        # TODO extract line-reading
         with open(txt_file, 'r+') as f:
-            for ingr in f:
-                ingr = ingr.strip()
-                if len(ingr.split()) == 0:
+            for line in f:
+                line = line.strip()
+                if line == '\n' or self._interface.is_ingr_in_db(line):
                     continue
-                char_checklist = self.processor.check_chars(ingr)
+                char_checklist = self._processor.check_chars(line)
                 if all(char_checklist):
-                    ingr_stem = self.processor.stem_ingredient(ingr)
-                    if self.ingr_model.store_ingredient(ingr_stem):
-                        newly_added.append((ingr_stem, ingr))
+                    to_add.append(line)
                 else:
                     print(f'"{ingr}" contains invalid characters '
-                    f'({ingr[char_checklist.index(False)]})')
+                          f'({ingr[char_checklist.index(False)]})')
 
-        for stem, ingr in newly_added:
-            print(f'  - {stem} ({ingr})')
-        if not newly_added:
-            print('No newly added ingredients.')
+        if not to_add:
+            print('No new ingredients to add.\n')
         else:
-            print(f'{len(newly_added)} new in total.')
+            print("Ingredients to add:")
+            for ingr in to_add:
+                print(f'  - {ingr}')
+            while(True):
+                opt = input(
+                    'Add all of the above to database? [y/n]: ')
+
+                match opt.lower():
+                    case 'y':
+                        for ingr in to_add:
+                            self._interface.store_ingredient(ingr)
+                        print(f'{len(to_add)} ingredients added.')
+                        # TODO print 'ingredient' (no s) when it's only 1
+                    case 'n':
+                        print('Operation cancelled.')
+                    case _:
+                        continue
+                break
 
 
 class Searcher(object):
     def __init__(self, processor: IngrProcessor,
-        ingr_model: db_interface.Ingredients,
-        recipe_model: db_interface.Recipes) -> None:
-        
+                 interface: db.Interface) -> None:
+
         self.processor = processor
-        self.ingr_model = ingr_model
-        self.recipe_model = recipe_model
-    
+        self._interface = interface
+
     def fetch_recipes(self, ingr_included, ingr_excluded):
         """
         Return all recipes stored in the database that contain
@@ -209,17 +216,23 @@ class Searcher(object):
 
 def main():
     """ Main entry point of the app """
-    ingr_db_inter = db_interface.Ingredients()
-    recipe_db_inter = db_interface.Recipes()
+    interface = db.Interface()
     ingr_processor = IngrProcessor()
     # ingredient = 'Pomodoro'
     # print(f'Is "{ingredient}" in the database? '
     #     f'{ingr_db_inter.is_ingr_ind_db(ingredient)}')
 
-    loader = Loader(ingr_processor, ingr_db_inter, recipe_db_inter)
+    loader = Loader(ingr_processor, interface)
+    print("\n[DEB] Stored ingredients:")
+    for ingredient in interface.get_ingredients():
+        print(" -", *ingredient)
+    
     loader.store_ingredients()
+    
     loader.load_recipes()
-    recipe_db_inter.fetch_recipes(ingr_included=('limon',), ingr_excluded=('prezzemol',))
+    print("\n[DEB] Stored Recipes:")
+    interface.print_recipes()
+
 
 if __name__ == "__main__":
     """ This is executed when run from the command line """
