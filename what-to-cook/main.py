@@ -23,6 +23,8 @@ def _concatenate_window(list_str: str) -> Iterator[str]:
         for index in range(len(list_str) - words_at_a_time + 1):
             yield ' '.join(list_str[index:words_at_a_time+index])
 
+# TODO delegate message printing to user interface
+
 
 class UserInterface(object):
     """
@@ -52,22 +54,11 @@ class IngrProcessor(object):
         Return first found match. If no match, raise exception
         """
 
-        # # Tokenize line
-        # #   Replace apostrophes to prepare line for splitting
-        # line_list = line.replace('`', ' ')
-        # line_list = line_list.replace("'", ' ')
-        # #   Split cleaned up line
-        # line_list = line_list.lower().split()
-
-        # TODO Check and delete above
-
         # Tokenize line
         word_list = re.split(r'\W+', line.lower().strip())
-        # Parse line in descending number of words at a time
 
-        # Try to detect the longest ingredient first, so that "spring onion"
-        # has precedence over "onion"
-
+        # Try to detect the ingredient with the most words first, so that
+        # "spring onion" has precedence over "onion"
         for phrase in _concatenate_window(word_list):
             if interface.is_ingr_in_db(phrase):
                 return phrase
@@ -152,31 +143,39 @@ class Loader(object):
                 else:
                     yield line
 
+    def _read_ingredient_line(self):
+        """Read ingredients file and yield lines which aren't whitespaces."""
+        project_path = os.path.dirname(os.path.abspath(__file__))
+        txt_file = project_path+'/../ingredients.txt'  # TODO move paths to setup.py
+
+        with open(txt_file, 'r+') as f:
+            for line in f:
+                if line != '\n':
+                    yield line
+
     def store_ingredients(self):
         """
         Load ingredients from ingr_list into database.
         Those already present are ignored.
         """
-        project_path = os.path.dirname(os.path.abspath(__file__))
-        txt_file = project_path+'/../ingredients.txt'  # TODO move paths to setup.py
-
-        to_add = []
 
         print('Loading ingredients:')
 
-        # TODO extract line-reading
-        with open(txt_file, 'r+') as f:
-            for line in f:
-                line = line.strip()
-                if line == '\n' or self._interface.is_ingr_in_db(line):
-                    continue
-                char_checklist = self._processor.check_chars(line)
-                if all(char_checklist):
-                    to_add.append(line)
-                else:
-                    print(f'"{ingr}" contains invalid characters '
-                          f'({ingr[char_checklist.index(False)]})')
+        # Get new ingredients
+        to_add = []
+        for line in self._read_ingredient_line():
+            line = line.strip().lower()
+            # Skip if the line represents an ingredient already present
+            if self._interface.is_ingr_in_db(line):
+                continue
+            char_checklist = self._processor.check_chars(line)
+            if all(char_checklist):
+                to_add.append(line)
+            else:
+                print(f'"{ingr}" contains invalid characters '
+                      f'({ingr[char_checklist.index(False)]})')
 
+        # TODO ask confirmation through user interface
         if not to_add:
             print('No new ingredients to add.\n')
         else:
@@ -191,8 +190,9 @@ class Loader(object):
                     case 'y':
                         for ingr in to_add:
                             self._interface.store_ingredient(ingr)
-                        print(f'{len(to_add)} ingredients added.')
-                        # TODO print 'ingredient' (no s) when it's only 1
+                        print(
+                            f'{len(to_add)} ingredient'
+                            f'{"s" if len(to_add) != 1 else ""} added.')
                     case 'n':
                         print('Operation cancelled.')
                     case _:
@@ -226,9 +226,9 @@ def main():
     print("\n[DEB] Stored ingredients:")
     for ingredient in interface.get_ingredients():
         print(" -", *ingredient)
-    
+
     loader.store_ingredients()
-    
+
     loader.load_recipes()
     print("\n[DEB] Stored Recipes:")
     interface.print_recipes()
