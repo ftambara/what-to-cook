@@ -162,8 +162,8 @@ class Interface:
         except sqlite3.IntegrityError:
             raise ValueError('Recipe already present')
         else:
-            recipe_id = self._tables['recipes'].execute_query(
-                'select last_insert_rowid();')[0][0]
+            [[recipe_id]] = self._tables['recipes'].execute_query(
+                'select last_insert_rowid();')
             query = 'insert into '\
                     'recipes_ingredients(recipe_id, ingr_name) '\
                     'values(?, ?)'
@@ -199,61 +199,3 @@ class Interface:
         results = self._tables['ingredients'].execute_query(query, params)
         assert len(results) in (0, 1)
         return True if len(results) == 1 else False
-
-
-class _Ingredients:
-    """Communicate with the ingredients table."""
-
-    def store_ingredients(self, ingr_list: list[str]):
-        """
-        Load ingredients from ingr_list into database.
-        Those already present are ignored.
-        Return map of bools where element is True if corresponding
-        ingredient was added to database.
-        """
-        added = []
-        for line in ingr_list:
-            line = line.strip()
-            self.cur.execute('select name from ingredients '
-                             + 'where name = (?)', (line,))
-            if not self.cur.fetchall():
-                # If ingredient was not found, store it
-                self.cur.execute('insert into ingredients(name)'
-                                 + 'values (?);', (line,))
-                self.con.commit()
-                added.append(True)
-            else:
-                added.append(False)
-        return added
-
-
-class _Recipes:
-    """Communicate with recipes and recipes_ingredients tables."""
-
-    def store_recipe(self, title: str, url: str, ingr_list: list[str]):
-        """
-        Store recipe into database.
-        Return True if stored, False if already present.
-        """
-        # Store recipe title and url into recipes
-        did_store = False
-        try:
-            self.cur.execute('insert into recipes(title, url) '
-                             'values (?, ?);', (title, url))
-            self.con.commit()
-            did_store = True
-        except sqlite3.IntegrityError:
-            return did_store
-
-        # Get the recipe autogenereted id
-        self.cur.execute('select last_insert_rowid();')
-        last_recipe_id = self.cur.fetchone()[0]
-
-        # Associate each ingredient with the obtained recipe id
-        for ingr in ingr_list:
-            self.cur.execute(
-                'insert into recipes_ingredients(recipe_id, ingr_name) '
-                'values(?, ?);', (last_recipe_id, ingr))
-            self.con.commit()
-
-        return did_store
