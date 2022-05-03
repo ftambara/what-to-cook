@@ -6,12 +6,14 @@
 __author__ = "Federico Tambara"
 __license__ = "MIT"
 
+import sys
 import os
 import re
 from typing import Iterator
 
-import db
-from definitions import Ingredient, Recipe
+from wtc import db
+from wtc import gui
+from wtc.definitions import Ingredient, Recipe
 
 
 def _concatenate_window(list_str: str) -> Iterator[str]:
@@ -24,15 +26,7 @@ def _concatenate_window(list_str: str) -> Iterator[str]:
             yield ' '.join(list_str[index:words_at_a_time+index])
 
 # TODO delegate message printing to user interface
-
-
-class UserInterface(object):
-    """
-    Middle man between User and the rest of the program
-    """
-
-    def __init__(self):
-        ...
+# TODO ask user to parse unknown ingredients manually
 
 
 class IngrProcessor(object):
@@ -216,6 +210,8 @@ class Searcher(object):
 
 def main():
     """ Main entry point of the app """
+    print("[[[[[[[[[[[[]]]]]]]]]]]]")
+    from wtc.gui import start_interface
     interface = db.Interface()
     ingr_processor = IngrProcessor()
     # ingredient = 'Pomodoro'
@@ -232,6 +228,7 @@ def main():
     loader.load_recipes()
     print("\n[DEB] Stored Recipes:")
     interface.print_recipes()
+    # gui.start_interface(interface)
 
 
 if __name__ == "__main__":
