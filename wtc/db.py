@@ -3,12 +3,11 @@
 import sqlite3
 import os
 
-from definitions import Ingredient, Recipe
+from definitions import Ingredient, Recipe, project_path
 
 _ALLOWED_EXTRA_CHARS = ['()']
 
-project_path = os.path.dirname(os.path.abspath(__file__))
-_DB_NAME = project_path + '/recipes.db'
+_DB_NAME = project_path + 'wtc/recipes.db'
 
 
 def _is_valid_sql(*args: str):

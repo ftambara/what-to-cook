@@ -1,19 +1,12 @@
-#!/usr/bin/env python3
-"""
-
-"""
-
 __author__ = "Federico Tambara"
 __license__ = "MIT"
 
-import sys
 import os
 import re
 from typing import Iterator
 
-from wtc import db
-from wtc import gui
-from wtc.definitions import Ingredient, Recipe
+import db
+from definitions import Recipe, project_path
 
 
 def _concatenate_window(list_str: str) -> Iterator[str]:
@@ -127,9 +120,8 @@ class Loader(object):
 
     def _read_recipe_line(self):
         """Read recipes file and yield lines that aren't comments."""
-        project_path = os.path.dirname(os.path.abspath(__file__))
         # TODO move paths to setup.py
-        recipes_file = project_path + '/../recipes-to-load.csv'
+        recipes_file = project_path + 'recipes-to-load.csv'
         with open(recipes_file) as f:
             for line in f:
                 if line.strip()[0] == '#':
@@ -139,8 +131,7 @@ class Loader(object):
 
     def _read_ingredient_line(self):
         """Read ingredients file and yield lines which aren't whitespaces."""
-        project_path = os.path.dirname(os.path.abspath(__file__))
-        txt_file = project_path+'/../ingredients.txt'  # TODO move paths to setup.py
+        txt_file = project_path+'ingredients.txt'  # TODO move paths to setup.py
 
         with open(txt_file, 'r+') as f:
             for line in f:
@@ -210,8 +201,10 @@ class Searcher(object):
 
 def main():
     """ Main entry point of the app """
+    
     print("[[[[[[[[[[[[]]]]]]]]]]]]")
-    from wtc.gui import start_interface
+    from definitions import project_path
+    print(project_path, '\n\n')
     interface = db.Interface()
     ingr_processor = IngrProcessor()
     # ingredient = 'Pomodoro'
