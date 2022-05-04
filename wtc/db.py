@@ -96,7 +96,7 @@ class Table:
 
 class Interface:
     """
-    Do not instantiate directly. Use subclasses.
+    Handles communication with the database.
     """
 
     def __init__(self) -> None:

@@ -5,9 +5,8 @@ https://docs.python.org/3/library/unittest.html
 
 import unittest
 import os
-from main import IngrProcessor
 from db import Interface
-from main import Loader
+from processing import Loader, IngrParser
 
 
 class TestRecipeLoading(unittest.TestCase):
@@ -19,13 +18,13 @@ class TestRecipeLoading(unittest.TestCase):
     def test_ingredient_extraction(self):
         """
         """
-        processor = IngrProcessor()
+        processor = IngrParser()
         expected_ingr_list = [
             ['carote', 'tahina', 'aglio', 'paprika', 'erba cipollina', 'olio',
-            'aceto', 'sale', 'pepe'],
+             'aceto', 'sale', 'pepe'],
             ['asparagi', 'burro', 'limone', 'sale'],
             ['merluzzo', 'pangrattato', 'vino', 'limone', 'prezzemolo',
-            'salvia', 'rosmarino', 'olio', 'sale', 'pepe']
+             'salvia', 'rosmarino', 'olio', 'sale', 'pepe']
         ]
         directory = os.path.dirname(os.path.abspath(__file__))
         filename = directory + '/test-recipes-to-load.csv'
@@ -46,7 +45,7 @@ class TestRecipeLoading(unittest.TestCase):
                 for entry in raw_ingr_list:
                     print("$$", entry)
                     ingr_list.append(processor.extract_ingredient(entry,
-                        Interface()))
+                                                                  Interface()))
                 # Compare with expected ingredients for that line
                 self.assertListEqual(expected_ingr_list[index], ingr_list)
 
@@ -59,7 +58,6 @@ class TestRecipeLoading(unittest.TestCase):
         Check if recipes obtained through search are the correct ones.
         """
         ...
-            
 
 
 if __name__ == '__main__':
