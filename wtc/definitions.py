@@ -4,6 +4,7 @@ import os
 
 project_path = os.path.join(os.path.dirname(__file__), "../")
 
+
 class Recipe(object):
     """
     Group information and actions relevant to a recipe.
@@ -12,10 +13,11 @@ class Recipe(object):
     ingredients: List of ingredients the recipe contains."""
 
     def __init__(self, title: str = None, url: str = None,
-                 ingr_names: list[str] = None):
+                 ingr_known: list[str] = [], ingr_unknown: list[str] = []):
         self._title = title
         self._url = url
-        self._ingr_names = ingr_names
+        self._ingr_known = ingr_known
+        self._ingr_unknown = ingr_unknown
 
     @property
     def title(self):
@@ -35,11 +37,11 @@ class Recipe(object):
 
     @property
     def ingr_names(self):
-        return self._ingr_names
+        return self._ingr_known
 
     @ingr_names.setter
     def ingr_names(self, ingr_names: list):
-        self._ingr_names = list(ingr_names)
+        self._ingr_known = list(ingr_names)
 
     def __str__(self):
         return f'{self.title}\n'\

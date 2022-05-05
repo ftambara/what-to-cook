@@ -146,9 +146,12 @@ class Interface:
             raise ValueError('Ingredient already present')
 
     def store_recipe(self, recipe: Recipe):
+        #TODO accept recipes with unknowns
         """
-        Store recipe in database.
-        Recipe will be stored with the ingredient names present in the
+        Store recipe in database. Raise ValueError if recipe is already
+        present.
+        
+        NOTE: Recipe will be stored with the ingredient names present in the
         recipe, not those in the dabase.
         """
         query = 'insert into '\
@@ -156,7 +159,6 @@ class Interface:
                 'values(?, ?)'
         params = (recipe.title, recipe.url)
         try:
-            print(repr(recipe.title))
             self._tables['recipes'].execute_query(query, params)
         except sqlite3.IntegrityError:
             raise ValueError('Recipe already present')

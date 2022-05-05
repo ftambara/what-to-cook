@@ -3,6 +3,7 @@ from typing import Iterator
 
 import db
 from definitions import Recipe, project_path
+import logging
 
 
 def _concatenate_window(list_str: str) -> Iterator[str]:
@@ -56,11 +57,36 @@ class IngrParser:
         return [char.isalpha() or char == ' ' for char in line]
 
 
+class RecipeLog:
+    """Track the status of recipes at loading time."""
+
+    def __init__(self):
+        self._num_successful = 0
+        self._num_with_unknowns = 0
+        self._num_errors = 0
+
+    def count_success(self):
+        self._num_successful += 1
+
+    def count_error(self):
+        self._num_errors += 1
+
+    def count_with_unknowns(self):
+        self._num_with_unknowns += 1
+
+    def get_counters(self) -> tuple[int, int, int]:
+        """Return number of successes, unknowns, and errors"""
+        return (self._num_successful,
+                self._num_with_unknowns,
+                self._num_errors)
+
+
 class Loader:
     """
     Responisble for loading recipes from a file, delegate ingredient
     extraction, and building list of doubts and errors to be handled later.
     """
+    # TODO recipe update and deletion features
 
     def __init__(self):
 
@@ -73,46 +99,59 @@ class Loader:
         and call the Parser to extract the ingredients out of each entry.
         Store on the database those recipes for which the parser detected one
         ingredient for every line.
-        
-        Return tuple of ints (num_loaded, not_loaded)
+
+        Return tuple of ints (num_loaded, num_not_loaded, num_errors)
         """
 
-        print('\nLoading recipes:')
+        logging.info('Loading recipes')
+
+        recipe_log = RecipeLog()
 
         for line in self._read_recipe_line():
+
             title, url, *ingredients_raw = line.split(',')
-            print('\n', end='')
-            print(f'  Title: {title}')
-            print(f'  URL: {url}')
+
+            print(f'\n\nTitle: {title}')
+            print(f'URL: {url}')
             print(f'Ingredients:\n')
             for ingr in ingredients_raw:
                 print(f'   - {ingr.strip()}')
 
             # Parse ingredient list, check if all are recognized.
-            ingredients_proc = []
-            unrecognized_ingredient_entries = []
+            known_ingredients = []
+            unknown_ingredients = []
             for ingr in ingredients_raw:
                 try:
                     ingr = self._parser.extract_ingredient(
                         ingr, self._interface)
-                    ingredients_proc.append(ingr)
                 except ValueError:
-                    # Ingredient could not be extracted.
-                    unrecognized_ingredient_entries.append(ingr)
-
-            if not unrecognized_ingredient_entries:
-                recipe = Recipe(title, url, ingredients_proc)
-                try:
-                    self._interface.store_recipe(recipe)
-                except ValueError:
-                    print('\n  Recipe ignored, title or URL already '
-                          'present.')
+                    unknown_ingredients.append(ingr)
                 else:
-                    print('\n  Recipe loaded successfully.')
+                    known_ingredients.append(ingr)
+
+                recipe = Recipe(title,
+                                url,
+                                ingr_known=known_ingredients,
+                                ingr_unknown=unknown_ingredients)
+
+            try:
+                self._interface.store_recipe(recipe)
+
+            except ValueError:
+                logging.info('Recipe ignored, title or URL already '
+                             'present.')
+                # No counters for duplicated recipes.
             else:
-                print('\n  Recipe not loaded. Ingredients not '
-                      'recognized:\n'
-                      f'{unrecognized_ingredient_entries}')
+                if not unknown_ingredients:
+                    logging.info('Recipe loaded successfully.')
+                    recipe_log.count_success()
+                else:
+                    logging.warning('Recipe loaded with some ingredients not '
+                                    'recognized:')
+                    print(f'{unknown_ingredients}')
+                    recipe_log.count_with_unknowns()
+
+        return recipe_log.get_counters()
 
     def _read_recipe_line(self):
         """Read recipes file and yield lines that aren't comments."""
