@@ -53,6 +53,8 @@ class Ingredient:
     """
     Ingredients are stored by name but compared by stem, to avoid saying
     "onion" and "onions" are different ingredients.
+
+    TODO configure ingredient language. Right now supports italian only.
     """
 
     def __init__(self, name: str) -> None:
@@ -62,7 +64,7 @@ class Ingredient:
         """
         import snowballstemmer as sb
 
-        self._name = name
+        self._name = name.lower().strip()
 
         stemmer = sb.stemmer('italian')
         self._stem = stemmer.stemWord(name)

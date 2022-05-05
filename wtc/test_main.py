@@ -5,29 +5,30 @@ https://docs.python.org/3/library/unittest.html
 
 import unittest
 import os
-from db import Interface
 from processing import Loader, IngrParser
+from definitions import project_path, Ingredient
 
 
 class TestRecipeLoading(unittest.TestCase):
-    """ This is one of potentially many TestCases """
 
-    def setUp(self):
-        self.seq = list(range(10))
+    def test_ingredient_parser(self):
 
-    def test_ingredient_extraction(self):
-        """
-        """
-        processor = IngrParser()
-        expected_ingr_list = [
+        expected_ingr_lists = [
             ['carote', 'tahina', 'aglio', 'paprika', 'erba cipollina', 'olio',
              'aceto', 'sale', 'pepe'],
             ['asparagi', 'burro', 'limone', 'sale'],
             ['merluzzo', 'pangrattato', 'vino', 'limone', 'prezzemolo',
              'salvia', 'rosmarino', 'olio', 'sale', 'pepe']
         ]
-        directory = os.path.dirname(os.path.abspath(__file__))
-        filename = directory + '/test-recipes-to-load.csv'
+        filename = project_path + 'wtc/test-recipes-to-load.csv'
+
+        parser = IngrParser()
+
+        def is_ingr(ingredient: str):
+            ingr_list = [Ingredient(ingr) for list_ in expected_ingr_lists
+                         for ingr in list_]
+            return Ingredient(ingredient) in ingr_list
+
         with open(filename) as f:
             lines = f.readlines()
             index = 0
@@ -40,24 +41,23 @@ class TestRecipeLoading(unittest.TestCase):
 
                 # Skip title and URL
                 raw_ingr_list = raw_ingr_list[2:]
-
                 # Process every entry for that line
                 for entry in raw_ingr_list:
-                    print("$$", entry)
-                    ingr_list.append(processor.extract_ingredient(entry,
-                                                                  Interface()))
+                    ingr_list.append(
+                        parser.extract_ingredient(entry, is_ingr))
+
                 # Compare with expected ingredients for that line
-                self.assertListEqual(expected_ingr_list[index], ingr_list)
+                self.assertListEqual(expected_ingr_lists[index], ingr_list)
 
                 index += 1
 
-    def test_recipe_fetching(self):
-        """
-        Make program load known recipes, then search recipes for each
-        ingredient present in the ones that have been loaded.
-        Check if recipes obtained through search are the correct ones.
-        """
-        ...
+    # def test_recipe_fetching(self):
+    #     """
+    #     Make program load known recipes, then search recipes for each
+    #     ingredient present in the ones that have been loaded.
+    #     Check if recipes obtained through search are the correct ones.
+    #     """
+    #     ...
 
 
 if __name__ == '__main__':

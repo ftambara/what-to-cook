@@ -1,5 +1,5 @@
 import re
-from typing import Iterator
+from typing import Iterator, Callable
 
 import db
 from definitions import Recipe, project_path
@@ -25,10 +25,8 @@ class IngrParser:
     ingredient database
     """
 
-    def __init__(self):
-        ...
-
-    def extract_ingredient(self, line: str, interface: db.Interface):
+    def extract_ingredient(self, line: str,
+                           is_ingr: Callable[[str], bool]):
         """
         Extract the first ingredient found in line.
         Ingredients with more words have priority.
@@ -44,7 +42,7 @@ class IngrParser:
         # Try to detect the ingredient with the most words first, so that
         # "spring onion" has precedence over "onion"
         for phrase in _concatenate_window(word_list):
-            if interface.is_ingr_in_db(phrase):
+            if is_ingr(phrase):
                 return phrase
 
         raise ValueError('line did not contain any known ingredient')
@@ -90,8 +88,8 @@ class Loader:
 
     def __init__(self):
 
-        self._parser = IngrParser()
         self._interface = db.Interface()
+        self._parser = IngrParser()
 
     def load_recipes(self):
         """
@@ -123,7 +121,7 @@ class Loader:
             for ingr in ingredients_raw:
                 try:
                     ingr = self._parser.extract_ingredient(
-                        ingr, self._interface)
+                        ingr, self._interface.is_ingr)
                 except ValueError:
                     unknown_ingredients.append(ingr)
                 else:
@@ -151,6 +149,7 @@ class Loader:
                     print(f'{unknown_ingredients}')
                     recipe_log.count_with_unknowns()
 
+        logging.info('Recipes EOF')
         return recipe_log.get_counters()
 
     def _read_recipe_line(self):
@@ -186,7 +185,7 @@ class Loader:
         for line in self._read_ingredient_line():
             line = line.strip().lower()
             # Skip if the line represents an ingredient already present
-            if self._interface.is_ingr_in_db(line):
+            if self._interface.is_ingr(line):
                 continue
             char_checklist = self._parser.check_chars(line)
             if all(char_checklist):
