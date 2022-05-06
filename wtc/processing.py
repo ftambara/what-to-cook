@@ -81,8 +81,8 @@ class RecipeLog:
 
 class Loader:
     """
-    Responisble for loading recipes from a file, delegate ingredient
-    extraction, and building list of doubts and errors to be handled later.
+    Handles everything that makes ingredients and recipes go into the database,
+    from where the user interface leaves off.
     """
     # TODO recipe update and deletion features
 
@@ -129,8 +129,8 @@ class Loader:
 
                 recipe = Recipe(title,
                                 url,
-                                ingr_known=known_ingredients,
-                                ingr_unknown=unknown_ingredients)
+                                ingredients_known=known_ingredients,
+                                ingredients_unknown=unknown_ingredients)
 
             try:
                 self._interface.store_recipe(recipe)
@@ -152,9 +152,19 @@ class Loader:
         logging.info('Recipes EOF')
         return recipe_log.get_counters()
 
+    @property
+    def num_pending_review(self):
+        return self._interface.num_unknowns
+
+    def next_pending_review(self):
+        return self._interface.get_next_unknown()
+
+    def make_known(self, recipe_id, text_with_unkown, extracted_ingredient):
+        self._interface.make_known(
+            recipe_id, text_with_unkown, extracted_ingredient)
+
     def _read_recipe_line(self):
         """Read recipes file and yield lines that aren't comments."""
-        # TODO move paths to setup.py
         recipes_file = project_path + 'recipes-to-load.csv'
         with open(recipes_file) as f:
             for line in f:

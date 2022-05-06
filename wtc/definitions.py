@@ -9,15 +9,16 @@ class Recipe(object):
     """
     Group information and actions relevant to a recipe.
     title: The title of the recipe.
-    url: The URL of the recipe. Include https:// part
+    url: The URL of the recipe.
     ingredients: List of ingredients the recipe contains."""
 
     def __init__(self, title: str = None, url: str = None,
-                 ingr_known: list[str] = [], ingr_unknown: list[str] = []):
+                 ingredients_known: list[str] = [],
+                 ingredients_unknown: list[str] = []):
         self._title = title
         self._url = url
-        self._ingr_known = ingr_known
-        self._ingr_unknown = ingr_unknown
+        self._ingredients_known = ingredients_known
+        self._ingredients_unknown = ingredients_unknown
 
     @property
     def title(self):
@@ -36,17 +37,28 @@ class Recipe(object):
         self._url = url
 
     @property
-    def ingr_names(self):
-        return self._ingr_known
+    def ingredients_known(self):
+        return self._ingredients_known
 
-    @ingr_names.setter
-    def ingr_names(self, ingr_names: list):
-        self._ingr_known = list(ingr_names)
+    @ingredients_known.setter
+    def ingredients_known(self, ingr_names: list):
+        self._ingredients_known = list(ingr_names)
+
+    @property
+    def ingredients_unknown(self):
+        return self._ingredients_unknown
+
+    @ingredients_unknown.setter
+    def ingredients_unknown(self, ingr_names: list):
+        self._ingredients_unknown = list(ingr_names)
+
+    def has_unknowns(self):
+        return (True if self.ingredients_unknown else False)
 
     def __str__(self):
         return f'{self.title}\n'\
             + f'{self.url}\n'\
-            + f'{", ".join(self.ingr_names)}'
+            + f'{", ".join(self.ingredients_known)}'
 
 
 class Ingredient:

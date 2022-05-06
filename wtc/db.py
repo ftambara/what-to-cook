@@ -4,7 +4,7 @@ import logging
 import sqlite3
 import os
 
-from definitions import Recipe, project_path
+from definitions import Ingredient, Recipe, project_path
 
 _ILLEGAL_SQL_CHARS = ';'
 
@@ -133,8 +133,10 @@ class Interface:
         logging.info('Interface initialized.')
 
     def store_ingredient(self, ingr_name: str):
-        query = 'insert into ingredients(name) '\
-                + 'values (?)'
+        query = '''
+        INSERT INTO ingredients(name)
+        VALUES (?)
+        '''
         params = (ingr_name,)
         try:
             self._executer.execute_query(query, params)
@@ -142,7 +144,6 @@ class Interface:
             raise ValueError('Ingredient already present')
 
     def store_recipe(self, recipe: Recipe):
-        # TODO accept recipes with unknowns
         """
         Store recipe in database. Raise ValueError if recipe is already
         present.
@@ -150,10 +151,12 @@ class Interface:
         NOTE: Recipe will be stored with the ingredient names present in the
         recipe, not those in the dabase.
         """
-        query = 'insert into '\
-                'recipes(title, url) '\
-                'values(?, ?)'
+        query = '''
+            INSERT INTO recipes(title, url)
+            values(?, ?)
+            '''
         params = (recipe.title, recipe.url)
+
         try:
             self._executer.execute_query(query, params)
         except sqlite3.IntegrityError:
@@ -161,16 +164,22 @@ class Interface:
         else:
             [[recipe_id]] = self._executer.execute_query(
                 'select last_insert_rowid()')
-            query = 'insert into '\
-                    'recipes_ingredients(recipe_id, ingr_name) '\
-                    'values(?, ?)'
-            for ingr_name in recipe.ingr_names:
-                params = (recipe_id, ingr_name)
-                self._executer.execute_query(
-                    query, params)
+
+            # Load any text with unknown ingredients in its corresponding table
+            query = '''
+                INSERT INTO ingr_unknowns(recipe_id, text_containing_ingr)
+                VALUES(?, ?)
+                '''
+            for text in recipe.ingredients_unknown:
+                params = (recipe_id, text)
+                self._executer.execute_query(query, params)
+
+            # Associate all known ingredients to recipe
+            for ingr_name in recipe.ingredients_known:
+                self.add_ingr_to_recipe(ingr_name, recipe_id)
 
     def get_ingredients(self):
-        query = 'select * from ingredients'
+        query = 'SELECT name FROM ingredients'
         return self._executer.execute_query(query)
 
     def print_recipes(self):
@@ -178,7 +187,7 @@ class Interface:
         results = self._executer.execute_query(query)
         for result in results:
             print("\n")
-            print(*result[1:], sep="\n")
+            print(*result, sep="\n")
             query = 'select ingr_name '\
                 'from recipes_ingredients '\
                 'where recipe_id = (?)'
@@ -188,7 +197,78 @@ class Interface:
             for ingredient in ingredients:
                 print("  -", *ingredient)
 
-    def is_ingr(self, string: str):
+    @property
+    def num_unknowns(self):
+        """Number of unknowns to review. Read-only."""
+        query = '''
+            SELECT count(*)
+            FROM recipes r
+            JOIN ingr_unknowns iu
+            USING(recipe_id)
+        '''
+        [[count]] = self._executer.execute_query(query)
+        return count
+
+    def get_unknowns(self) -> dict[str: list[Ingredient]]:
+        """
+        Return dict {recipe_title: ingredients_list} containing all
+        entries from which an ingredient could not be extracted.
+        """
+        query = '''
+            SELECT r.recipe_id, r.title, r.url, iu.text_containing_ingr
+            FROM recipes r
+            JOIN ingr_unknowns iu
+            USING(recipe_id)
+        '''
+        results = {}
+        for id, title, url, text_with_unknowns\
+                in self._executer.execute_query(query):
+            results.setdefault((id, title, url), []).append(text_with_unknowns)
+        return results
+
+    def get_next_unknown(self) -> tuple:
+        query = '''
+            SELECT r.recipe_id, r.title, r.url, iu.text_containing_ingr
+            FROM recipes r
+            JOIN ingr_unknowns iu
+            USING(recipe_id)
+            LIMIT 1
+        '''
+        [result] = self._executer.execute_query(query)
+        return result
+
+    def make_known(self, recipe_id, text_with_unkown, extracted_ingredient):
+        
+        # Delete text from ingr_unknowns table
+        query = '''
+            DELETE FROM ingr_unknowns
+            WHERE text_containing_ingr = (?)
+            LIMIT 1
+            '''
+        params = (text_with_unkown,)
+        self._executer.execute_query(query, params)
+
+        # Store the extracted ingredient in the ingredients table
+        self.store_ingredient(extracted_ingredient)
+
+        # Associate ingredient to corresponding recipe
+        self.add_ingr_to_recipe(extracted_ingredient, recipe_id)
+
+        logging.info(f'Extracted "{extracted_ingredient}" \
+            from "{text_with_unkown}"')
+
+    def add_ingr_to_recipe(self, ingr_name, recipe_id):
+        query = '''
+            INSERT INTO recipes_ingredients(recipe_id, ingr_name)
+            VALUES(?, ?)
+            '''
+        params = (recipe_id, ingr_name)
+        self._executer.execute_query(query, params)
+
+    def is_ingr(self, string: str) -> bool:
+        """
+        Check if string is a kown ingredient.
+        """
         query = 'select name '\
                 'from ingredients '\
                 'where name = (?)'
