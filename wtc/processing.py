@@ -153,6 +153,10 @@ class Loader:
         return recipe_log.get_counters()
 
     @property
+    def num_new_recipes(self):
+        raise NotImplementedError
+
+    @property
     def num_pending_review(self):
         return self._interface.num_unknowns
 
@@ -230,14 +234,19 @@ class Loader:
 
 
 class Searcher:
-    def __init__(self, parser: IngrParser,
-                 interface: db.Interface) -> None:
+    def __init__(self) -> None:
 
-        self.parser = parser
-        self._interface = interface
+        self._interface = db.Interface()
+        self.parser = IngrParser()
 
     def fetch_recipes(self, ingr_included, ingr_excluded):
         """
         Return all recipes stored in the database that contain
         ingr_included and don't contain ingr_excluded
         """
+
+    def get_ingredients(self):
+        """
+        Return list of all stored ingredients.
+        """
+        return self._interface.get_ingredients()
