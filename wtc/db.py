@@ -167,13 +167,29 @@ class Interface:
             for ingr_name in recipe.ingredients_known:
                 self.add_ingr_to_recipe(ingr_name, recipe_id)
 
-    def get_recipes(self, ingr_included: list[Ingredient] = []):
-        if ingr_included:
-            query = f'''
-            SELECT recipe_id, title, url
+    def get_recipes(self, ingr_included: list[Ingredient] = []) -> list[Recipe]:
 
-            '''
-            
+        # Omit recipes containing unknown ingredients
+        to_omit_ids = {id for id, _ in self.get_unknowns().items()}
+
+        # Get all recipes
+        query = '''
+        SELECT recipe_id, title, url
+        FROM recipes
+        '''
+        recipes = {
+            recipe_id: Recipe(title, url, self.get_ingredients(recipe_id))
+            for [recipe_id, title, url] in self._executer.execute_query(query)
+        }
+
+        result = []
+        for recipe_id, recipe in recipes.items():
+            if recipe_id in to_omit_ids:
+                continue
+            if all(ingr in recipe.ingredients_known for ingr in ingr_included):
+                result.append(recipe)
+
+        return result
 
     def store_ingredient(self, ingr_name: str):
         """Store ingredient into database."""
@@ -187,13 +203,27 @@ class Interface:
         except sqlite3.IntegrityError:
             raise ValueError('Ingredient already present')
 
-    def get_ingredients(self, recipe_id=None) -> list[str]:
+    def get_ingredient_names(self, recipe_id: int = None) -> list[str]:
         """Return sorted list of ingredient names"""
-        query = 'SELECT name FROM ingredients'
+        if recipe_id:
+            query = '''
+            SELECT ingr_name
+            FROM recipes_ingredients
+            WHERE recipe_id = (?)
+            '''
+            params = (recipe_id,)
+        else:
+            query = 'SELECT name FROM ingredients'
+            params = ()
+
         ingr_list = [ingr.capitalize()
-                        for [ingr] in self._executer.execute_query(query)]
+                     for [ingr] in self._executer.execute_query(query, params)]
         ingr_list.sort()
         return ingr_list
+
+    def get_ingredients(self, recipe_id: int = None) -> list[Ingredient]:
+        return [Ingredient(ingr_name)
+                for ingr_name in self.get_ingredient_names(recipe_id)]
 
     def print_recipes(self):
         query = 'select * from recipes'
@@ -235,10 +265,8 @@ class Interface:
             USING(recipe_id)
         '''
         results = {}
-        for id, title, url, text_with_unknowns\
-                in self._executer.execute_query(query):
+        for id, text_with_unknowns in self._executer.execute_query(query):
             results.setdefault(id, []).append(text_with_unknowns)
-        print("\n\n", results)
         return results
 
     def get_next_unknown(self) -> tuple:

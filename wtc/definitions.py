@@ -4,6 +4,38 @@ import os
 
 project_path = os.path.join(os.path.dirname(__file__), "../")
 
+class Ingredient:
+    """
+    Ingredients are stored by name but compared by stem, to avoid saying
+    "onion" and "onions" are different ingredients.
+
+    TODO configure ingredient language. Right now supports italian only.
+    """
+
+    def __init__(self, name: str) -> None:
+        """
+        Create an ingredient instance.
+        name should be a singular noun, preferrably one word only.
+        """
+        import snowballstemmer as sb
+
+        self._name = name.lower().strip()
+
+        stemmer = sb.stemmer('italian')
+        self._stem = stemmer.stemWord(self._name)
+
+    @property
+    def name(self):
+        return self._name
+
+    def __eq__(self, other) -> bool:
+        return self._stem == other._stem
+
+    def __repr__(self) -> str:
+        return f'Ingredient({self.name})'
+
+    def __str__(self) -> str:
+        return self.name
 
 class Recipe(object):
     """
@@ -13,7 +45,7 @@ class Recipe(object):
     ingredients: List of ingredients the recipe contains."""
 
     def __init__(self, title: str = None, url: str = None,
-                 ingredients_known: list[str] = [],
+                 ingredients_known: list[Ingredient] = [],
                  ingredients_unknown: list[str] = []):
         self._title = title
         self._url = url
@@ -58,38 +90,4 @@ class Recipe(object):
     def __str__(self):
         return f'{self.title}\n'\
             + f'{self.url}\n'\
-            + f'{", ".join(self.ingredients_known)}'
-
-
-class Ingredient:
-    """
-    Ingredients are stored by name but compared by stem, to avoid saying
-    "onion" and "onions" are different ingredients.
-
-    TODO configure ingredient language. Right now supports italian only.
-    """
-
-    def __init__(self, name: str) -> None:
-        """
-        Create an ingredient instance.
-        name should be a singular noun, preferrably one word only.
-        """
-        import snowballstemmer as sb
-
-        self._name = name.lower().strip()
-
-        stemmer = sb.stemmer('italian')
-        self._stem = stemmer.stemWord(name)
-
-    @property
-    def name(self):
-        return self._name
-
-    def __eq__(self, other) -> bool:
-        return self._stem == other._stem
-
-    def __repr__(self) -> str:
-        return f'Ingredient({self.name})'
-
-    def __str__(self) -> str:
-        return self.name
+            + f'{", ".join(str(i) for i in self.ingredients_known)}'

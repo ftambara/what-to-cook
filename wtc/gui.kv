@@ -69,6 +69,7 @@
                 size_hint: None, 1
                 width: self.height
                 text: 'Search'
+                on_release: app.get_recipes()
         AvailableIngrRV:
             data: root.data_available
             viewclass: 'AvailableIngrItem'

@@ -83,9 +83,9 @@ class MainBoard(RelativeLayout):
 class WtcApp(App):
 
     def __init__(self, loader: Loader, searcher: Searcher, **kwargs):
+        super(WtcApp, self).__init__(**kwargs)
         self.loader = loader
         self.searcher = searcher
-        super(WtcApp, self).__init__(**kwargs)
 
     def build(self):
         self.search_screen = SearchScreen(name='search_screen')
@@ -108,10 +108,9 @@ class WtcApp(App):
         return root
 
     def load_ingredients(self, ingr_list: list[str]):
-        from random import choice
         self.search_screen.data = [{
             'ingr_name': ingr_name,
-            'selected': choice((False, True))
+            'selected': False
         }
             for ingr_name in ingr_list]
 
@@ -119,7 +118,6 @@ class WtcApp(App):
         data = self.search_screen.data
         self.search_screen.data = []
         self.search_screen.data = data
-
 
     def select_ingr(self, ingr_name: str):
         for index, item in enumerate(self.search_screen.data):
@@ -134,6 +132,12 @@ class WtcApp(App):
                 self.search_screen.data[index]['selected'] = False
                 self.refresh_search_data()
                 return
+
+    def get_recipes(self) -> dict:
+        """Return dict of recipes containing currently selected ingredients."""
+        ingr_included = [item['ingr_name']
+                         for item in self.search_screen.get_selected_ingredients()]
+        print(*self.searcher.get_recipes(ingr_included), sep="\n")
 
 
 def start_app(loader: Loader, searcher: Searcher):

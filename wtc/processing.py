@@ -2,7 +2,7 @@ import re
 from typing import Iterator, Callable
 
 import db
-from definitions import Recipe, project_path
+from definitions import Ingredient, Recipe, project_path
 import logging
 
 
@@ -238,15 +238,16 @@ class Searcher:
         self._interface = db.Interface()
         self.parser = IngrParser()
 
-    def get_recipes(self, ingr_included):
+    def get_recipes(self, ingr_included: list[str]) -> list[dict]:
         """
         Return all recipes stored in the database that contain
         ingr_included.
         """
-        return self._interface.get_recipes(ingr_included)
+        filter = [Ingredient(ingr) for ingr in ingr_included]
+        return self._interface.get_recipes(filter)
 
     def get_ingredients(self):
         """
         Return list of all stored ingredients.
         """
-        return self._interface.get_ingredients()
+        return self._interface.get_ingredient_names()
