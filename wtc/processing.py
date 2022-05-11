@@ -238,11 +238,12 @@ class Searcher:
         self._interface = db.Interface()
         self.parser = IngrParser()
 
-    def fetch_recipes(self, ingr_included, ingr_excluded):
+    def get_recipes(self, ingr_included):
         """
         Return all recipes stored in the database that contain
-        ingr_included and don't contain ingr_excluded
+        ingr_included.
         """
+        return self._interface.get_recipes(ingr_included)
 
     def get_ingredients(self):
         """
