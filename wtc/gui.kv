@@ -4,3 +4,111 @@
 #:set main_color_clear (244/255, 255/255, 222/255)
 #:set app_white (255/255, 255/255, 255/255)
 #:set app_black (0/255, 0/255, 0/255)
+
+#:import project_path definitions.project_path
+#:import random random
+
+<AvailableIngrItem>:
+    canvas.before:
+        Color:
+            rgb: app_white
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    background_normal: ''
+    background_color: [0]*4
+    padding: '10dp', '10dp'
+    color: app_black + (1,)
+    text: root.ingr_name
+    on_release: app.select_ingr(root.ingr_name)
+
+
+<SelectedIngrItem>:
+    canvas.before:
+        Color:
+            rgb: main_color
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    background_normal: ''
+    background_color: [0]*4
+    padding: '10dp', '10dp'
+    color: app_black + (1,)
+    text: root.ingr_name
+    on_release: app.deselect_ingr(root.ingr_name)
+
+<SearchBox>:
+    canvas.before:
+        Color:
+            rgb: app_white
+        Rectangle:
+            size: self.size
+            pos: self.pos
+
+<SearchScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint: 1, 1
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint: 1, None
+            height: '90dp' #self.minimum_size
+            padding: '10dp'
+            spacing: '20dp'
+            SearchBox:
+                data: root.data_selected
+                viewclass: 'SelectedIngrItem'
+                RecycleGridLayout:
+                    size_hint: 1, None
+                    height: self.minimum_height
+                    cols: int(self.width//120)
+                    default_size: '130dp', '35dp'
+                    padding: '10dp'
+                    spacing: '5dp'
+            Button:
+                size_hint: None, 1
+                width: self.height
+                text: 'Search'
+        AvailableIngrRV:
+            data: root.data_available
+            viewclass: 'AvailableIngrItem'
+            RecycleGridLayout:
+                size_hint: 1, None
+                size: self.minimum_size
+                cols: 5
+                default_size: '100dp', '35dp'
+                padding: '10dp'
+                spacing: '10dp'
+    
+
+<MainBoard>:
+    canvas.before:
+        Color:
+            rgb: main_color_clear
+        Rectangle:
+            size: self.size
+    Image:
+        source: project_path + 'assets/images/wtc-logo-watermark.png'
+        size_hint: 0.8, None
+        size_hint_max_x: '500dp'
+        height: self.width / self.image_ratio
+        pos_hint: {'center_x': 0.5, 'y': 0.1}
+
+<SidePanel>:
+    orientation: 'vertical'
+    size_hint: 0.3, 1
+    size_hint_min_x: '250dp'
+    padding: '20dp'
+    canvas.before:
+        Color:
+            rgb: main_color
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    Image:
+        source: project_path + 'assets/images/wtc-logo-white-on-green.png'
+        size_hint: 1, None
+        height: self.width / self.image_ratio
+        pos_hint: {'center_x': 0.5, 'top': 1}
+    BoxLayout:
+        orientation: 'vertical'

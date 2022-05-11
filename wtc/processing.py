@@ -15,8 +15,7 @@ def _concatenate_window(list_str: str) -> Iterator[str]:
         for index in range(len(list_str) - words_at_a_time + 1):
             yield ' '.join(list_str[index:words_at_a_time+index])
 
-# TODO delegate message printing to user interface
-# TODO ask user to parse unknown ingredients manually
+# TODO turn prints to logging
 
 
 class IngrParser:

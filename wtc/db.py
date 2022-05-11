@@ -178,9 +178,13 @@ class Interface:
             for ingr_name in recipe.ingredients_known:
                 self.add_ingr_to_recipe(ingr_name, recipe_id)
 
-    def get_ingredients(self):
+    def get_ingredients(self) -> list[str]:
+        """Return sorted list of ingredient names"""
         query = 'SELECT name FROM ingredients'
-        return self._executer.execute_query(query)
+        ingr_list = [ingr.capitalize()
+                     for [ingr] in self._executer.execute_query(query)]
+        ingr_list.sort()
+        return ingr_list
 
     def print_recipes(self):
         query = 'select * from recipes'
@@ -238,7 +242,7 @@ class Interface:
         return result
 
     def make_known(self, recipe_id, text_with_unkown, extracted_ingredient):
-        
+
         # Delete text from ingr_unknowns table
         query = '''
             DELETE FROM ingr_unknowns
