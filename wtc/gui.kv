@@ -8,6 +8,57 @@
 #:import project_path definitions.project_path
 #:import random random
 
+<RecipeCard>:
+    # Add click behavior and redirect to recipe url on_release
+    canvas.before:
+        Color:
+            rgb: app_white
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    orientation: 'vertical'
+    size_hint: 1, None
+    size: self.minimum_size
+    on_release: app.open_url(root.recipe_url)
+    Label:
+        canvas.before:
+            Color:
+                rgb: main_color
+            Rectangle:
+                size: self.size
+                pos: self.pos
+        text: root.recipe_title
+        size_hint: 1, None
+        height: dp(40)
+        text_size: self.width, None
+        padding: '5dp', '5dp'
+        color: app_black + (1,)
+        bold: True
+    Label:
+        size_hint: 1, None
+        padding: '5dp', 0
+        text: 'Ingredients: '+', '.join(str(i) for i in root.ingredients)
+        text_size: self.width, None
+        color: app_black + (1,)
+
+        
+
+
+<ResultsScreen>:
+    RecycleView:
+        data: root.data
+        viewclass: 'RecipeCard'
+        RecycleGridLayout:
+            size: 1, 1
+            size_hint_y: None
+            height: self.minimum_height
+            cols: 2
+            default_size_hint: 1, None
+            default_size_y: '60dp'
+            padding: '10dp'
+            spacing: '5dp'
+
+
 <AvailableIngrItem>:
     canvas.before:
         Color:
@@ -69,7 +120,7 @@
                 size_hint: None, 1
                 width: self.height
                 text: 'Search'
-                on_release: app.get_recipes()
+                on_release: app.search_recipes()
         AvailableIngrRV:
             data: root.data_available
             viewclass: 'AvailableIngrItem'
