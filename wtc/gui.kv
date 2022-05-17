@@ -8,6 +8,20 @@
 #:import project_path definitions.project_path
 #:import random random
 
+<SidePanelButton@Button>:
+    canvas.before:
+        Color:
+            rgb: app_white
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    background_normal: ''
+    background_color: [0]*4
+    color: app_black
+    size_hint: None, None
+    size: self.texture_size
+    padding: '10dp', '10dp'
+
 <RecipeCard>:
     # Add click behavior and redirect to recipe url on_release
     canvas.before:
@@ -21,42 +35,54 @@
     size: self.minimum_size
     on_release: app.open_url(root.recipe_url)
     Label:
-        canvas.before:
-            Color:
-                rgb: main_color
-            Rectangle:
-                size: self.size
-                pos: self.pos
         text: root.recipe_title
         size_hint: 1, None
         height: dp(40)
         text_size: self.width, None
         padding: '5dp', '5dp'
-        color: app_black + (1,)
+        color: main_color
         bold: True
     Label:
         size_hint: 1, None
-        padding: '5dp', 0
+        padding_x: '5dp'
         text: 'Ingredients: '+', '.join(str(i) for i in root.ingredients)
         text_size: self.width, None
-        color: app_black + (1,)
+        color: app_black
 
         
 
 
 <ResultsScreen>:
-    RecycleView:
-        data: root.data
-        viewclass: 'RecipeCard'
-        RecycleGridLayout:
-            size: 1, 1
-            size_hint_y: None
-            height: self.minimum_height
-            cols: 2
-            default_size_hint: 1, None
-            default_size_y: '60dp'
-            padding: '10dp'
-            spacing: '5dp'
+    BoxLayout:
+        orientation: 'vertical'
+        Button:
+            canvas.before:
+                Color:
+                    rgb: app_white
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+            background_normal: ''
+            background_color: [0]*4
+            color: app_black
+            text: 'Go back'
+            size_hint: None, None
+            pos_hint: {'right': 1}
+            padding: '15dp', '15dp'
+            size: self.texture_size
+            on_release: app.go_back_from_results()
+        RecycleView:
+            data: root.data
+            viewclass: 'RecipeCard'
+            RecycleGridLayout:
+                size: 1, 1
+                size_hint_y: None
+                height: self.minimum_height
+                cols: 2
+                default_size_hint: 1, None
+                default_size_y: '60dp'
+                padding: '10dp'
+                spacing: '5dp'
 
 
 <AvailableIngrItem>:
@@ -69,7 +95,7 @@
     background_normal: ''
     background_color: [0]*4
     padding: '10dp', '10dp'
-    color: app_black + (1,)
+    color: app_black
     text: root.ingr_name
     on_release: app.select_ingr(root.ingr_name)
 
@@ -84,8 +110,8 @@
     background_normal: ''
     background_color: [0]*4
     padding: '10dp', '10dp'
-    color: app_black + (1,)
-    text: root.ingr_name
+    color: app_black
+    text: root.ingr_name + "   ×"
     on_release: app.deselect_ingr(root.ingr_name)
 
 <SearchBox>:
@@ -117,9 +143,12 @@
                     padding: '10dp'
                     spacing: '5dp'
             Button:
+                background_normal: ""
                 size_hint: None, 1
                 width: self.height
                 text: 'Search'
+                color: app_black
+                bold: True
                 on_release: app.search_recipes()
         AvailableIngrRV:
             data: root.data_available
@@ -145,6 +174,65 @@
         size_hint_max_x: '500dp'
         height: self.width / self.image_ratio
         pos_hint: {'center_x': 0.5, 'y': 0.1}
+    
+
+<IngrConsultPopup>:
+    auto_dismiss: False
+    size_hint: None, None
+    size: '300dp', '200dp'
+    title: 'Exctract the ingredient:'
+    title_color: app_black
+    separator_color: [0]*4
+    background: ''
+    canvas.before:
+        Color:
+            rgb: app_white
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    BoxLayout:
+        orientation: 'vertical'
+        spacing: '10dp'
+        Label:
+            size_hint: 1, None
+            size: self.texture_size
+            text: root.recipe_title
+            color: app_black
+        Label:
+            size_hint: 1, None
+            size: self.texture_size
+            text: root.text_with_unknown
+            color: app_black
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint: 1, None
+            size: self.minimum_size
+            TextInput:
+                id: ingredient
+                color: app_black
+                multiline: False
+            Button:
+                canvas.before:
+                    Color:
+                        rgb: main_color
+                    Rectangle:
+                        size: self.size
+                        pos: self.pos
+                background_normal: ''
+                background_color: [0]*4
+                size_hint: None, None
+                size: self.texture_size
+                padding: '15dp', '10dp'
+                text: 'Save'
+                color: app_black
+                on_release: app.save_ingr_review(root.recipe_id, root.text_with_unknown, root.ids.ingredient.text)
+        Button:
+            text: 'Cancel'
+            size_hint: None, None
+            size: self.texture_size
+            padding: '15dp', '10dp'
+            pos_hint: {'center_x': 0.5}
+            on_release: root.dismiss()
 
 <SidePanel>:
     orientation: 'vertical'
@@ -164,3 +252,24 @@
         pos_hint: {'center_x': 0.5, 'top': 1}
     BoxLayout:
         orientation: 'vertical'
+        Label:
+            size_hint: None, None
+            size: self.texture_size
+            color: app_black
+            text: 'x' + ' new recipes detected'
+            pos_hint: {'center_x': 0.5}
+        SidePanelButton:
+            text: 'Load recipes'
+            pos_hint: {'center_x': 0.5}
+            on_release: app.load_recipes()
+
+        Label:
+            size_hint: None, None
+            size: self.texture_size
+            color: app_black
+            text: 'x' + ' pending ingredients'
+            pos_hint: {'center_x': 0.5}
+        SidePanelButton:
+            text: 'Review ingredients'
+            pos_hint: {'center_x': 0.5}
+            on_release: app.review_next_ingr()

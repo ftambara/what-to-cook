@@ -1,8 +1,12 @@
+import logging
+import webbrowser
+
 from kivy.lang import Builder
 from kivy.app import App
 
 from kivy.uix.button import Button
 from kivy.uix.label import Label
+from kivy.uix.popup import Popup
 
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
@@ -10,17 +14,42 @@ from kivy.uix.stacklayout import StackLayout
 from kivy.uix.relativelayout import RelativeLayout
 
 from kivy.uix.recycleview import RecycleView
-from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
+from kivy.uix.screenmanager import ScreenManager, Screen, SlideTransition
 
-from kivy.properties import ListProperty, AliasProperty, StringProperty
+from kivy.uix.behaviors import ButtonBehavior
+
+from kivy.properties import (
+    ListProperty, AliasProperty, StringProperty, NumericProperty)
 
 from processing import Loader, Searcher
+from definitions import Ingredient
 
 Builder.load_file('gui.kv')
 
 
+class IngrConsultPopup(Popup):
+    recipe_id = NumericProperty()
+    recipe_title = StringProperty()
+    text_with_unknown = StringProperty()
+
+    def populate(self, data):
+        self.recipe_id = data['recipe_id']
+        self.recipe_title = data['recipe_title']
+        self.text_with_unknown = data['text_with_unknown']
+
+
 class SidePanel(BoxLayout):
     pass
+
+
+class RecipeCard(ButtonBehavior, BoxLayout):
+    recipe_title = StringProperty()
+    recipe_url = StringProperty()
+    ingredients = ListProperty()
+
+
+class ResultsScreen(Screen):
+    data = ListProperty()
 
 
 class AvailableIngrItem(Button):
@@ -47,21 +76,14 @@ class SearchScreen(Screen):
 
     data = ListProperty()
 
-    def get_data(self) -> list[dict]:
-        return [{
-            'ingr_name': item['ingr_name'],
-            'selected': item['selected']
-        }
-            for item in self.data]
-
     def get_selected_ingredients(self) -> list[str]:
         return [{'ingr_name': item['ingr_name']}
-                for item in self.get_data()
+                for item in self.data
                 if item['selected']]
 
     def get_available_ingredients(self) -> list[str]:
         return [{'ingr_name': item['ingr_name']}
-                for item in self.get_data()
+                for item in self.data
                 if not item['selected']]
 
     data_selected = AliasProperty(get_selected_ingredients, bind=['data'])
@@ -69,10 +91,6 @@ class SearchScreen(Screen):
 
 
 class Manager(ScreenManager):
-    pass
-
-
-class ResultsScreen(Screen):
     pass
 
 
@@ -89,10 +107,12 @@ class WtcApp(App):
 
     def build(self):
         self.search_screen = SearchScreen(name='search_screen')
+        self.results_screen = ResultsScreen(name='results_screen')
 
-        self.transition = FadeTransition(duration=0.3)
+        self.transition = SlideTransition(duration=0.2, direction='left')
         self.manager = Manager(transition=self.transition)
         self.manager.add_widget(self.search_screen)
+        self.manager.add_widget(self.results_screen)
 
         self.main_board = MainBoard()
         self.main_board.add_widget(self.manager)
@@ -103,16 +123,47 @@ class WtcApp(App):
         root.add_widget(self.panel)
         root.add_widget(self.main_board)
 
-        self.load_ingredients(self.searcher.get_ingredients())
+        self.load_ingredients()
+
+        self.popup = IngrConsultPopup()
 
         return root
 
-    def load_ingredients(self, ingr_list: list[str]):
+    def load_ingredients(self):
+        ordered_ingr_names = sorted(ingr.name.capitalize()
+                                    for ingr in self.searcher.get_ingredients())
+
         self.search_screen.data = [{
             'ingr_name': ingr_name,
             'selected': False
         }
-            for ingr_name in ingr_list]
+            for ingr_name in ordered_ingr_names]
+        logging.info(f'Loaded {len(self.search_screen.data)} ingredient/s.')
+
+    def review_next_ingr(self):
+        if self.loader.num_pending_review:
+            id, title, _, text = self.loader.next_pending_review()
+            self.popup.populate(
+                {
+                    'recipe_id': id,
+                    'recipe_title': title,
+                    'text_with_unknown': text
+                }
+            )
+            self.popup.open()
+
+    def save_ingr_review(self, recipe_id, text_with_unknown, ingr_name):
+        self.loader.solve_unknown(recipe_id, text_with_unknown, Ingredient(ingr_name))
+        self.load_ingredients()
+        self.refresh_search_data()
+
+        if self.loader.num_pending_review:
+            self.review_next_ingr()
+        else:
+            self.popup.dismiss()
+
+    def load_recipes(self):
+        self.loader.load_recipes()
 
     def refresh_search_data(self):
         data = self.search_screen.data
@@ -133,11 +184,28 @@ class WtcApp(App):
                 self.refresh_search_data()
                 return
 
-    def get_recipes(self) -> dict:
+    def search_recipes(self) -> dict:
         """Return dict of recipes containing currently selected ingredients."""
         ingr_included = [item['ingr_name']
                          for item in self.search_screen.get_selected_ingredients()]
-        print(*self.searcher.get_recipes(ingr_included), sep="\n")
+        self.results_screen.data = [
+            {
+                'recipe_title': recipe.title,
+                'recipe_url': recipe.url,
+                'ingredients': recipe.ingredients_known
+            }
+            for recipe in self.searcher.get_recipes(ingr_included)
+        ]
+        self.refresh_search_data()
+        self.transition.direction = 'left'
+        self.manager.current = 'results_screen'
+
+    def go_back_from_results(self):
+        self.transition.direction = 'right'
+        self.manager.current = 'search_screen'
+
+    def open_url(self, url):
+        webbrowser.open(url)
 
 
 def start_app(loader: Loader, searcher: Searcher):

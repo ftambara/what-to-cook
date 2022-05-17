@@ -1,5 +1,3 @@
-# TODO: define field and table names outside of execute statements - DRY
-
 import logging
 import sqlite3
 import os
@@ -138,7 +136,7 @@ class Interface:
         present.
 
         NOTE: Recipe will be stored with the ingredient names present in the
-        recipe, not those in the dabase.
+        recipe, not those in the datbase.
         """
         query = '''
             INSERT INTO recipes(title, url)
@@ -164,13 +162,13 @@ class Interface:
                 self._executer.execute_query(query, params)
 
             # Associate all known ingredients to recipe
-            for ingr_name in recipe.ingredients_known:
-                self.add_ingr_to_recipe(ingr_name, recipe_id)
+            for ingr in recipe.ingredients_known:
+                self._add_ingr_to_recipe(ingr, recipe_id)
 
     def get_recipes(self, ingr_included: list[Ingredient] = []) -> list[Recipe]:
 
         # Omit recipes containing unknown ingredients
-        to_omit_ids = {id for id, _ in self.get_unknowns().items()}
+        to_omit_ids = {id for id, *_ in self.get_unknowns()}
 
         # Get all recipes
         query = '''
@@ -191,20 +189,32 @@ class Interface:
 
         return result
 
-    def store_ingredient(self, ingr_name: str):
+    def get_recipe_id(self, recipe_title: str, recipe_url: str) -> int:
+        query = '''
+        SELECT recipe_id, title, url
+        FROM recipes
+        '''
+        recipes = self._executer.execute_query(query)
+        dict_ = {(recipe_title.lower(), recipe_url.lower()): id
+                 for id, title, url in recipes}
+        return dict_[(recipe_title.lower(), recipe_url.lower())]
+
+    def store_ingredient(self, ingr: Ingredient):
         """Store ingredient into database."""
         query = '''
         INSERT INTO ingredients(name)
         VALUES (?)
         '''
-        params = (ingr_name,)
+        params = (ingr.name,)
         try:
             self._executer.execute_query(query, params)
         except sqlite3.IntegrityError:
             raise ValueError('Ingredient already present')
 
     def get_ingredient_names(self, recipe_id: int = None) -> list[str]:
-        """Return sorted list of ingredient names"""
+        """
+        Return sorted list of ingredient names, capitalized on the first letter
+        """
         if recipe_id:
             query = '''
             SELECT ingr_name
@@ -216,9 +226,9 @@ class Interface:
             query = 'SELECT name FROM ingredients'
             params = ()
 
-        ingr_list = [ingr.capitalize()
-                     for [ingr] in self._executer.execute_query(query, params)]
-        ingr_list.sort()
+        ingr_list = [ingr_name
+                     for [ingr_name]
+                     in self._executer.execute_query(query, params)]
         return ingr_list
 
     def get_ingredients(self, recipe_id: int = None) -> list[Ingredient]:
@@ -252,27 +262,11 @@ class Interface:
         [[count]] = self._executer.execute_query(query)
         return count
 
-    def get_unknowns(self) -> dict[str: list[Ingredient]]:
+    def get_unknowns(self, limit: int = 0) -> list[tuple]:
         """
-        Return dict 
-            {recipe_id: ingredients_list}
-        containing all entries from which an ingredient could not be extracted.
-        """
-        query = '''
-            SELECT r.recipe_id, iu.text_containing_ingr
-            FROM recipes r
-            JOIN ingr_unknowns iu
-            USING(recipe_id)
-        '''
-        results = {}
-        for id, text_with_unknowns in self._executer.execute_query(query):
-            results.setdefault(id, []).append(text_with_unknowns)
-        return results
-
-    def get_next_unknown(self) -> tuple:
-        """
-        Return one unknown as a tuple:
+        Return unknowns as a list of tuples:
             (recipe_id, recipe_title, recipe_url, text_with_unknown)
+        limit: number of unknowns to return. Return all unknowns if limit is 0.
         """
         # Search is executed each time to refresh the list of results after
         # a new ingredient has been added to the database.
@@ -281,15 +275,25 @@ class Interface:
             FROM recipes r
             JOIN ingr_unknowns iu
             USING(recipe_id)
-            LIMIT 1
         '''
-        [result] = self._executer.execute_query(query)
+        if limit:
+            query = query + f'\nLIMIT {limit}'
+        try:
+            result = self._executer.execute_query(query)
+        except ValueError:
+            raise ValueError('No unknowns left to review.')
         return result
 
-    def make_known(self, recipe_id, text_with_unkown, extracted_ingredient):
+    def solve_unknown(self,
+                      recipe_id: int,
+                      text_with_unkown: str,
+                      extracted_ingr: Ingredient):
         """
         Add extracted ingredient to database, update unknowns accordingly,
         keeping the link with the original recipe.
+        This has no error checking. To get an error checking and work saving
+        wrapper, call Loader().solve_unknown.
+        NOTE: Make sure the ingredient is saved first, using store_ingredient
         """
         # Delete text from ingr_unknowns table
         query = '''
@@ -300,31 +304,16 @@ class Interface:
         params = (text_with_unkown,)
         self._executer.execute_query(query, params)
 
-        # Store the extracted ingredient in the ingredients table
-        self.store_ingredient(extracted_ingredient)
+        self._add_ingr_to_recipe(extracted_ingr, recipe_id)
 
-        self.add_ingr_to_recipe(extracted_ingredient, recipe_id)
-
-        logging.info(f'Extracted "{extracted_ingredient}" \
+        logging.info(f'Extracted "{extracted_ingr.name}" \
             from "{text_with_unkown}"')
 
-    def add_ingr_to_recipe(self, ingr_name, recipe_id):
+    def _add_ingr_to_recipe(self, ingr: Ingredient, recipe_id: int):
         """Associate ingredient to corresponding recipe"""
         query = '''
             INSERT INTO recipes_ingredients(recipe_id, ingr_name)
             VALUES(?, ?)
             '''
-        params = (recipe_id, ingr_name)
+        params = (recipe_id, ingr.name)
         self._executer.execute_query(query, params)
-
-    def is_ingr(self, string: str) -> bool:
-        """
-        Check if string is a kown ingredient.
-        """
-        query = 'select name '\
-                'from ingredients '\
-                'where name = (?)'
-        params = (string,)
-        results = self._executer.execute_query(query, params)
-        assert len(results) in (0, 1)
-        return True if len(results) == 1 else False

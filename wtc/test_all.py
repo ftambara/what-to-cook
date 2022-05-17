@@ -145,12 +145,14 @@ class TestApp:
             'Hummus di carote',
             'https://www.cucchiaio.it/ricetta/hummus-carote/')
 
-        loader.solve_unknown(id, '500 g di carote', 'Carota')
+        loader.solve_unknown(id, '500 g di carote', Ingredient('Carota'))
         assert loader.num_pending_review == 30
 
         loader.solve_unknown(
-            id, '5 cucchiai di olio extravergine di oliva', 'olio')
-        assert loader.num_pending_review == 28
+            id, '5 cucchiai di olio extravergine di oliva', Ingredient('olio'))
+        assert loader.num_pending_review == 29
+
+        # TODO test common unkown solving feature
 
         known_ingredients = searcher.get_ingredients()
         assert len(known_ingredients) == 2

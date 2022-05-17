@@ -4,6 +4,7 @@ import os
 
 project_path = os.path.join(os.path.dirname(__file__), "../")
 
+
 class Ingredient:
     """
     Ingredients are stored by name but compared by stem, to avoid saying
@@ -36,6 +37,7 @@ class Ingredient:
 
     def __str__(self) -> str:
         return self.name
+
 
 class Recipe(object):
     """
@@ -91,3 +93,15 @@ class Recipe(object):
         return f'{self.title}\n'\
             + f'{self.url}\n'\
             + f'{", ".join(str(i) for i in self.ingredients_known)}'
+
+    def __eq__(self, __o: object) -> bool:
+        return (
+            self.title == __o.title
+            and self.url == __o.url
+            and len(self.ingredients_known) == len(__o.ingredients_known)
+            and all(True if ingr in self.ingredients_known else False
+                    for ingr in self.ingredients_known)
+            and len(self.ingredients_unknown) == len(__o.ingredients_unknown)
+            and all(True if ingr in self.ingredients_unknown else False
+                    for ingr in self.ingredients_unknown)
+        )
