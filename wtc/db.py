@@ -196,9 +196,35 @@ class Interface:
         FROM recipes
         '''
         recipes = self._executer.execute_query(query)
-        dict_ = {(recipe_title.lower(), recipe_url.lower()): id
+        dict_ = {(title.lower(), url.lower()): id
                  for id, title, url in recipes}
+        
         return dict_[(recipe_title.lower(), recipe_url.lower())]
+
+    def delete_recipe(self, recipe_id: int):
+        """Permanently delete recipe information from the database."""
+        queries = [
+            '''
+            DELETE FROM recipes_ingredients
+            WHERE recipe_id = (?)
+            ''',
+            '''
+            DELETE FROM ingr_unknowns
+            WHERE recipe_id = (?)
+            ''',
+            '''
+            DELETE FROM recipes
+            WHERE recipe_id = (?)
+            '''
+        ]
+        params = (recipe_id,)
+        print(*self.get_recipes(), "\n\n")
+        for recipe in self.get_recipes():
+            print(self.get_recipe_id(recipe.title, recipe.url), recipe)
+        for query in queries:
+            self._executer.execute_query(query, params)
+        print(f'\nDeleted {recipe_id=}')
+        
 
     def store_ingredient(self, ingr: Ingredient):
         """Store ingredient into database."""

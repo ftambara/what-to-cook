@@ -162,6 +162,7 @@ class Loader:
         if num_errors:
             logging.error(
                 f'{num_errors} recipes had errors while loading recipes.')
+        return recipe_log.get_counters()
 
     @property
     def num_new_recipes(self):
@@ -171,6 +172,9 @@ class Loader:
     def num_pending_review(self):
         return self._interface.num_unknowns
 
+    def delete_recipe(self, recipe_id):
+        self._interface.delete_recipe(recipe_id)
+    
     def get_pending_review(self) -> dict:
         """
         Return all unknowns as a dictionary:
@@ -296,5 +300,5 @@ class Searcher:
         """
         return self._interface.get_ingredients()
 
-    def get_recipe_id(self, title, url):
-        self._interface.get_recipe_id(title, url)
+    def get_recipe_id(self, title, url) -> int:
+        return self._interface.get_recipe_id(title, url)

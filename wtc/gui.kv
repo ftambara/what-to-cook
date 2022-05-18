@@ -1,26 +1,16 @@
 #:kivy 2.1.0
 
+#:import project_path settings.project_path
+#:import random random
+
+#:set images_path project_path + 'assets/images/'
 #:set main_color (125/255, 191/255, 0/255)
 #:set main_color_clear (244/255, 255/255, 222/255)
 #:set app_white (255/255, 255/255, 255/255)
 #:set app_black (0/255, 0/255, 0/255)
 
-#:import project_path settings.project_path
-#:import random random
 
-<SidePanelButton@Button>:
-    canvas.before:
-        Color:
-            rgb: app_white
-        Rectangle:
-            size: self.size
-            pos: self.pos
-    background_normal: ''
-    background_color: [0]*4
-    color: app_black
-    size_hint: None, None
-    size: self.texture_size
-    padding: '10dp', '10dp'
+<ImageButton@ButtonBehavior+Image>:
 
 <RecipeCard>:
     # Add click behavior and redirect to recipe url on_release
@@ -31,28 +21,41 @@
             size: self.size
             pos: self.pos
     orientation: 'vertical'
-    size_hint: 1, None
-    size: self.minimum_size
+    size_hint: 1, 1
+    # height: '120dp'
     on_release: app.open_url(root.recipe_url)
-    Label:
-        text: root.recipe_title
+    BoxLayout:
+        orientation:'horizontal'
         size_hint: 1, None
-        height: dp(40)
-        text_size: self.width, None
-        padding: '5dp', '5dp'
-        color: main_color
-        bold: True
+        size: self.minimum_size
+        Label:
+            size_hint_y: None
+            height: dp(40)
+            padding: '5dp', '5dp'
+            text_size: self.width, None
+            text: root.recipe_title
+            color: main_color
+            bold: True
+        ImageButton:
+            source: images_path + 'delete.png'
+            size_hint: None, 0.5
+            pos_hint: {'center_y': 0.5}
+            width: self.height * self.image_ratio
+            on_release: app.delete_recipe(root.recipe_id)
+            color: main_color
     Label:
-        size_hint: 1, None
         padding_x: '5dp'
         text: 'Ingredients: '+', '.join(str(i) for i in root.ingredients)
-        text_size: self.width, None
+        text_size: self.size
+        valign: 'top'
         color: app_black
+        mipmap: True
 
 
 <ResultsScreen>:
     BoxLayout:
         orientation: 'vertical'
+        padding: '20dp'
         Button:
             canvas.before:
                 Color:
@@ -78,7 +81,7 @@
                 height: self.minimum_height
                 cols: 2
                 default_size_hint: 1, None
-                default_size_y: '60dp'
+                default_size_y: '300dp'
                 padding: '10dp'
                 spacing: '5dp'
 
@@ -124,6 +127,7 @@
     BoxLayout:
         orientation: 'vertical'
         size_hint: 1, 1
+        padding: '20dp'
         BoxLayout:
             orientation: 'horizontal'
             size_hint: 1, None
@@ -241,42 +245,85 @@
             pos_hint: {'center_x': 0.5}
             on_release: root.dismiss()
 
+
+<SidePanelButton@Button>:
+    canvas.before:
+        Color:
+            rgb: app_white if not self.disabled else [0.7]*4
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    background_normal: ''
+    background_color: [0]*4
+    background_disabled_normal: ''
+    color: app_black
+    disabled_color: app_black+(0.5,)
+    size_hint: None, None
+    size: self.texture_size
+    padding: '10dp', '10dp'
+
 <SidePanel>:
     orientation: 'vertical'
     size_hint: 0.3, 1
     size_hint_min_x: '250dp'
-    padding: '20dp'
     canvas.before:
         Color:
             rgb: main_color
         Rectangle:
             size: self.size
             pos: self.pos
-    Image:
-        source: project_path + 'assets/images/wtc-logo-white-on-green.png'
-        size_hint: 1, None
-        height: self.width / self.image_ratio
-        pos_hint: {'center_x': 0.5, 'top': 1}
     BoxLayout:
         orientation: 'vertical'
-        Label:
-            size_hint: None, None
-            size: self.texture_size
-            color: app_black
-            text: 'x' + ' new recipes detected'
-            pos_hint: {'center_x': 0.5}
-        SidePanelButton:
-            text: 'Load recipes'
-            pos_hint: {'center_x': 0.5}
-            on_release: app.load_recipes()
-
-        Label:
-            size_hint: None, None
-            size: self.texture_size
-            color: app_black
-            text: 'x' + ' pending ingredients'
-            pos_hint: {'center_x': 0.5}
-        SidePanelButton:
-            text: 'Review ingredients'
-            pos_hint: {'center_x': 0.5}
-            on_release: app.review_next_ingr()
+        size_hint: 1, None
+        size: self.minimum_size
+        padding: '30dp'
+        spacing: '30dp'
+        Image:
+            source: project_path + 'assets/images/wtc-logo-white-on-green.png'
+            size_hint: 1, None
+            height: self.parent.width / self.image_ratio
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint: 1, None
+            size: self.minimum_size
+            spacing: '5dp'
+            Label:
+                id: load_label
+                size_hint: None, None
+                size: self.texture_size
+                pos_hint: {'center_x': 0.5}
+                color: app_black
+                text: 'Load recipes from file: '
+            SidePanelButton:
+                id: load_button
+                size_hint: None, None
+                size: self.texture_size
+                pos_hint: {'center_x': 0.5}
+                text: 'Load recipes'
+                on_release: app.load_recipes()
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint: 1, None
+            size: self.minimum_size
+            spacing: '5dp'
+            Label:
+                size_hint: None, None
+                size: self.texture_size
+                pos_hint: {'center_x': 0.5}
+                color: app_black
+                text: str(root.num_pending_ingredients) + ' pending ingredients'
+            SidePanelButton:
+                id: review_button
+                size_hint: None, None
+                size: self.texture_size
+                pos_hint: {'center_x': 0.5}
+                text: 'Review ingredients'
+                on_release: app.review_next_ingr()
+    BoxLayout:
+        orientation: 'vertical'
+        canvas.before:
+            Color:
+                rgb: app_white
+            Rectangle:
+                size: self.size
+                pos: self.pos

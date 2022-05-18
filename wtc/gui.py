@@ -3,6 +3,7 @@ import webbrowser
 
 from kivy.lang import Builder
 from kivy.app import App
+from kivy.clock import Clock
 
 from kivy.uix.button import Button
 from kivy.uix.label import Label
@@ -47,10 +48,34 @@ class IngrReviewPopup(Popup):
 
 
 class SidePanel(BoxLayout):
-    pass
+    num_pending_ingredients = NumericProperty()
+
+    def __init__(self, **kwargs):
+        super(SidePanel, self).__init__(**kwargs)
+        Clock.schedule_once(lambda dt: self.on_num_pending_ingredients(
+            self, self.num_pending_ingredients), 0)
+
+    def on_num_pending_ingredients(self, instance, value):
+        if value == 0:
+            self.ids.review_button.disabled = True
+        else:
+            self.ids.review_button.disabled = False
+
+    def update_load_label(self, num_new_recipes):
+        if num_new_recipes == 0:
+            self.ids.load_label.text = 'No new recipes were loaded.'
+        else:
+            self.ids.load_label.text = f'{num_new_recipes} '\
+                'new recipes loaded.'
+
+        Clock.schedule_once(lambda dt: self.clear_load_label(), 3)
+
+    def clear_load_label(self):
+        self.ids.load_label.text = 'Load recipes from file: '
 
 
 class RecipeCard(ButtonBehavior, BoxLayout):
+    recipe_id = NumericProperty()
     recipe_title = StringProperty()
     recipe_url = StringProperty()
     ingredients = ListProperty()
@@ -126,6 +151,9 @@ class WtcApp(App):
         self.main_board.add_widget(self.manager)
 
         self.panel = SidePanel()
+        self.update_num_pending_ingredients()
+        # Clock.schedule_interval(
+        #     lambda dt: self.update_num_pending_ingredients(), 2)
 
         root = BoxLayout()
         root.add_widget(self.panel)
@@ -148,6 +176,10 @@ class WtcApp(App):
             for ingr_name in ordered_ingr_names]
         logging.info(f'Loaded {len(self.search_screen.data)} ingredient/s.')
 
+    def update_num_pending_ingredients(self):
+        num = self.loader.num_pending_review
+        self.panel.num_pending_ingredients = num
+
     def review_next_ingr(self):
         if self.loader.num_pending_review:
             id, title, _, text = self.loader.next_pending_review()
@@ -165,6 +197,7 @@ class WtcApp(App):
             recipe_id, text_with_unknown, Ingredient(ingr_name))
         self.load_ingredients()
         self.refresh_search_data()
+        self.update_num_pending_ingredients()
 
         if self.loader.num_pending_review:
             self.review_next_ingr()
@@ -172,7 +205,16 @@ class WtcApp(App):
             self.review_popup.dismiss()
 
     def load_recipes(self):
-        self.loader.load_recipes()
+        successes, *_ = self.loader.load_recipes()
+        self.panel.update_load_label(successes)
+        self.update_num_pending_ingredients()
+
+    def delete_recipe(self, recipe_id):
+        self.loader.delete_recipe(recipe_id)
+        for index, dict in enumerate(self.results_screen.data):
+            if dict['recipe_id'] == recipe_id:
+                del self.results_screen.data[index]
+                return
 
     def refresh_search_data(self):
         data = self.search_screen.data
@@ -199,6 +241,7 @@ class WtcApp(App):
                          for item in self.search_screen.get_selected_ingredients()]
         self.results_screen.data = [
             {
+                'recipe_id': self.searcher.get_recipe_id(recipe.title, recipe.url),
                 'recipe_title': recipe.title,
                 'recipe_url': recipe.url,
                 'ingredients': recipe.ingredients_known
