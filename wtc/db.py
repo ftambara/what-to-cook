@@ -2,7 +2,8 @@ import logging
 import sqlite3
 import os
 
-from definitions import Ingredient, Recipe, project_path
+from definitions import Ingredient, Recipe
+from settings import project_path
 
 _ILLEGAL_SQL_CHARS = ';'
 

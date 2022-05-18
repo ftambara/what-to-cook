@@ -2,7 +2,8 @@ import re
 from typing import Iterator, Callable
 
 import db
-from definitions import Ingredient, Recipe, project_path
+from definitions import Ingredient, Recipe
+from settings import ingredients_path, recipes_path
 import logging
 
 
@@ -87,8 +88,16 @@ class Loader:
 
     def __init__(self):
 
+        self.ingredients_file_path = ingredients_path
+        self.recipes_file_path = recipes_path
         self._interface = db.Interface()
         self._parser = IngrParser()
+
+    def set_ingr_path(self, path):
+        self.ingredients_file_path = path
+
+    def set_recipes_path(self, path):
+        self.recipes_file_path = path
 
     def load_recipes(self):
         """
@@ -104,7 +113,7 @@ class Loader:
 
         recipe_log = RecipeLog()
 
-        for line in self._read_recipe_line():
+        for line in self._read_recipe_line(self.recipes_file_path):
 
             try:
                 title, url, *ingredients_raw = line.split(',')
@@ -217,9 +226,8 @@ class Loader:
                         .append(unknown)
         return candidates
 
-    def _read_recipe_line(self):
+    def _read_recipe_line(self, recipes_file):
         """Read recipes file and yield lines that aren't comments."""
-        recipes_file = project_path + 'recipes-to-load.csv'
         with open(recipes_file) as f:
             for line in f:
                 if line.strip()[0] == '#':
@@ -229,9 +237,7 @@ class Loader:
 
     def _read_ingredient_line(self):
         """Read ingredients file and yield lines which aren't whitespaces."""
-        txt_file = project_path+'ingredients.txt'  # TODO make file paths configurable
-
-        with open(txt_file, 'r+') as f:
+        with open(self.ingredients_file_path, 'r+') as f:
             for line in f:
                 if line != '\n':
                     yield line

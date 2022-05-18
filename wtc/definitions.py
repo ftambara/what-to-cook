@@ -1,9 +1,5 @@
 """Recipe class definition"""
 
-import os
-
-project_path = os.path.join(os.path.dirname(__file__), "../")
-
 
 class Ingredient:
     """

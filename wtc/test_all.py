@@ -9,15 +9,20 @@ import os
 import pytest
 
 from processing import Loader, IngrParser, Searcher
-from definitions import project_path, Ingredient, Recipe
+from definitions import Ingredient, Recipe
+from settings import project_path, ingredients_path
 
+INGREDIENTS_TEST_FILE = project_path + 'wtc/test_files/ingredients_test.txt'
+RECIPES_TEST_FILE = project_path + 'wtc/test_files/recipes_test.csv'
 
 @pytest.fixture
 def clean_setup(scope="function"):
     import os
     os.remove(project_path+'/wtc/recipes.db')
     loader = Loader()
-
+    loader.set_ingr_path(INGREDIENTS_TEST_FILE)
+    loader.set_recipes_path(RECIPES_TEST_FILE)
+    yield loader
 
 @pytest.fixture
 def recipes_test_set() -> list[Recipe]:
@@ -90,34 +95,7 @@ def ingredients_test_set(recipes_test_set):
     return unique_ingredients
 
 
-@pytest.fixture
-def fill_ingredients_file_full(ingredients_test_set):
-    os.rename(project_path+'ingredients.txt',
-              project_path+'ingredients-backup.txt')
-
-    with open(project_path+'ingredients.txt', 'w') as fp:
-        for ingredient in ingredients_test_set:
-            fp.write(ingredient.name + '\n')
-    yield
-
-    os.remove(project_path+'ingredients.txt')
-    os.rename(project_path+'ingredients-backup.txt',
-              project_path+'ingredients.txt')
-
-
 class TestApp:
-
-    # @pytest.fixture
-    # def expected_recipes_dict_list(expected_recipes, scope="session"):
-    #     result = []
-    #     for recipe in expected_recipes:
-    #         result.append({
-    #             'title': recipe.title,
-    #             'url': recipe.url,
-    #             'unknowns': recipe.unknown_ingredients
-    #         })
-
-    #     return result
 
     def test_no_known_ingredients(self,
                                   clean_setup,
@@ -126,7 +104,7 @@ class TestApp:
         Test recipe loading without any ingredients in the database.
         """
 
-        loader = Loader()
+        loader = clean_setup
         # TODO let loader load recipes from arbitrary file or from a dict,
         # delegating file processing to another function.
         loader.load_recipes()
@@ -161,14 +139,13 @@ class TestApp:
 
     def test_no_unknown_ingredients(self,
                                     clean_setup,
-                                    fill_ingredients_file_full,
                                     recipes_test_set: list[Recipe],
                                     ingredients_test_set):
         """
         Test recipe loading by first loading in the database the ingredients
         present in the recipes file.
         """
-        loader = Loader()
+        loader = clean_setup
         # TODO let loader load recipes and ingredients from arbitrary file or
         # from a dict, delegating file processing to another function.
 

@@ -5,7 +5,7 @@
 #:set app_white (255/255, 255/255, 255/255)
 #:set app_black (0/255, 0/255, 0/255)
 
-#:import project_path definitions.project_path
+#:import project_path settings.project_path
 #:import random random
 
 <SidePanelButton@Button>:
@@ -48,8 +48,6 @@
         text: 'Ingredients: '+', '.join(str(i) for i in root.ingredients)
         text_size: self.width, None
         color: app_black
-
-        
 
 
 <ResultsScreen>:
@@ -129,7 +127,7 @@
         BoxLayout:
             orientation: 'horizontal'
             size_hint: 1, None
-            height: '90dp' #self.minimum_size
+            height: '90dp'
             padding: '10dp'
             spacing: '20dp'
             SearchBox:
@@ -150,17 +148,25 @@
                 color: app_black
                 bold: True
                 on_release: app.search_recipes()
+        Label:
+            text: "Select the ingredients you'd like the recipe to contain:"
+            size_hint: 1, None
+            height: self.texture_size[1]
+            halign: 'left'
+            text_size: self.size
+            color: app_black
+            padding: '15dp', '15dp'
         AvailableIngrRV:
             data: root.data_available
             viewclass: 'AvailableIngrItem'
             RecycleGridLayout:
                 size_hint: 1, None
                 size: self.minimum_size
-                cols: 5
+                cols: int(root.width//120)
                 default_size: '100dp', '35dp'
                 padding: '10dp'
                 spacing: '10dp'
-    
+
 
 <MainBoard>:
     canvas.before:
@@ -174,12 +180,13 @@
         size_hint_max_x: '500dp'
         height: self.width / self.image_ratio
         pos_hint: {'center_x': 0.5, 'y': 0.1}
+        
     
 
-<IngrConsultPopup>:
+<IngrReviewPopup>:
     auto_dismiss: False
     size_hint: None, None
-    size: '300dp', '200dp'
+    size: '350dp', '200dp'
     title: 'Exctract the ingredient:'
     title_color: app_black
     separator_color: [0]*4

@@ -2,15 +2,15 @@ __author__ = "Federico Tambara"
 __license__ = "MIT"
 
 import gui
+import settings
 from processing import Loader, Searcher
-from db import Interface
 
 
 def main():
     """ Main entry point of the app """
     loader = Loader()
     searcher = Searcher()
-    loader.store_ingredients() #TODO create startup routine
+    loader.store_ingredients() #TODO call through GUI when user requires.
     gui.start_app(loader, searcher)
 
 

@@ -27,7 +27,15 @@ from definitions import Ingredient
 Builder.load_file('gui.kv')
 
 
-class IngrConsultPopup(Popup):
+class ChooseFilePopup(Popup):
+    file_kind = StringProperty()
+
+
+class SettingsPopup(Popup):
+    pass
+
+
+class IngrReviewPopup(Popup):
     recipe_id = NumericProperty()
     recipe_title = StringProperty()
     text_with_unknown = StringProperty()
@@ -125,7 +133,7 @@ class WtcApp(App):
 
         self.load_ingredients()
 
-        self.popup = IngrConsultPopup()
+        self.review_popup = IngrReviewPopup()
 
         return root
 
@@ -143,24 +151,25 @@ class WtcApp(App):
     def review_next_ingr(self):
         if self.loader.num_pending_review:
             id, title, _, text = self.loader.next_pending_review()
-            self.popup.populate(
+            self.review_popup.populate(
                 {
                     'recipe_id': id,
                     'recipe_title': title,
                     'text_with_unknown': text
                 }
             )
-            self.popup.open()
+            self.review_popup.open()
 
     def save_ingr_review(self, recipe_id, text_with_unknown, ingr_name):
-        self.loader.solve_unknown(recipe_id, text_with_unknown, Ingredient(ingr_name))
+        self.loader.solve_unknown(
+            recipe_id, text_with_unknown, Ingredient(ingr_name))
         self.load_ingredients()
         self.refresh_search_data()
 
         if self.loader.num_pending_review:
             self.review_next_ingr()
         else:
-            self.popup.dismiss()
+            self.review_popup.dismiss()
 
     def load_recipes(self):
         self.loader.load_recipes()
