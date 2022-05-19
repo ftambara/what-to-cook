@@ -3,7 +3,7 @@ import sqlite3
 import os
 
 from definitions import Ingredient, Recipe
-from settings import project_path
+from paths import project_path
 
 _ILLEGAL_SQL_CHARS = ';'
 
