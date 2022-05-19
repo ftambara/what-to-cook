@@ -10,7 +10,7 @@ import pytest
 
 from processing import Loader, IngrParser, Searcher
 from definitions import Ingredient, Recipe
-from settings import project_path, ingredients_path
+from paths import project_path, ingredients_path
 
 INGREDIENTS_TEST_FILE = project_path + 'wtc/test_files/ingredients_test.txt'
 RECIPES_TEST_FILE = project_path + 'wtc/test_files/recipes_test.csv'

@@ -3,7 +3,7 @@ from typing import Iterator, Callable
 
 import db
 from definitions import Ingredient, Recipe
-from settings import ingredients_path, recipes_path
+from paths import ingredients_path, recipes_path
 import logging
 
 

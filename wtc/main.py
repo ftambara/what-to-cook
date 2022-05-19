@@ -2,7 +2,6 @@ __author__ = "Federico Tambara"
 __license__ = "MIT"
 
 import gui
-import settings
 from processing import Loader, Searcher
 
 
