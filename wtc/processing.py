@@ -1,5 +1,6 @@
 import re
-from typing import Iterator, Callable
+import csv
+from typing import Iterator
 
 import db
 from definitions import Ingredient, Recipe
@@ -113,12 +114,7 @@ class Loader:
 
         recipe_log = RecipeLog()
 
-        for line in self._read_recipe_line(self.recipes_file_path):
-
-            try:
-                title, url, *ingredients_raw = line.split(',')
-            except ValueError:
-                recipe_log.count_error()
+        for title, url, *ingredients_raw in self._read_recipe_line(self.recipes_file_path):
 
             # Parse ingredient list, check if all are recognized.
             known_ingredients = []
@@ -232,9 +228,10 @@ class Loader:
 
     def _read_recipe_line(self, recipes_file):
         """Read recipes file and yield lines that aren't comments."""
-        with open(recipes_file) as f:
-            for line in f:
-                if line.strip()[0] == '#':
+        with open(recipes_file) as fp:
+            csv_reader = csv.reader(fp, dialect='unix')
+            for line in csv_reader:
+                if not line or line[0].strip("' ").startswith('#'):
                     continue
                 else:
                     yield line

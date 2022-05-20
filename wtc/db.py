@@ -1,6 +1,5 @@
 import logging
 import sqlite3
-import os
 
 from definitions import Ingredient, Recipe
 from paths import project_path
@@ -326,7 +325,6 @@ class Interface:
         query = '''
             DELETE FROM ingr_unknowns
             WHERE text_containing_ingr = (?)
-            LIMIT 1
             '''
         params = (text_with_unkown,)
         self._executer.execute_query(query, params)
