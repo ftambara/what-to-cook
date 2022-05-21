@@ -207,6 +207,7 @@ class WtcApp(App):
 
             def scheduled():
                 self.review_popup.ids.ingredient_textinput.focus = True
+                self.review_popup.ids.ingredient_textinput.text = ''
         else:
             self.review_popup.dismiss()
 

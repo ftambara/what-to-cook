@@ -1,5 +1,6 @@
 import re
 import csv
+import sqlite3
 from typing import Iterator
 
 import db
@@ -202,14 +203,31 @@ class Loader:
             text_with_unknown, [extracted_ingr])
 
         # If everything is ok, solve the unknown in the database
-        self._interface.store_ingredient(extracted_ingr)
+        try:
+            self._interface.store_ingredient(extracted_ingr)
+        except ValueError:
+            logging.info(
+                f'Ingredient "{extracted_ingr.name}" already present.')
+            pass
         self._interface.solve_unknown(
             recipe_id, text_with_unknown, extracted_ingr)
+        for id, (*_, unknowns) in self.get_solution_candidates(extracted_ingr).items():
+            for unknown in unknowns:
+                try: 
+                    self._interface.solve_unknown(
+                    id, unknown, extracted_ingr)
+                except sqlite3.IntegrityError:
+                    # This error indicates that there was likely an error on
+                    # candidate recognition. TODO: take note of unkowns
+                    # involved and present them to the user for manual review.
+                    logging.warning('Problem with automatic solving. '\
+                        'Duplicate ingredient loading was attempted for this '\
+                        'recipe.')
 
     def delete_unknown(self, text_with_unknown):
         self._interface.delete_unknown(text_with_unknown)
 
-    def get_same_solution_candidates(self, extracted_ingr: Ingredient):
+    def get_solution_candidates(self, extracted_ingr: Ingredient):
 
         candidates = {}
         # Check if other unknowns are solved with the same ingredient

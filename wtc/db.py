@@ -2,12 +2,9 @@ import logging
 import sqlite3
 
 from definitions import Ingredient, Recipe
-from paths import project_path
+from paths import database_path
 
 _ILLEGAL_SQL_CHARS = ';'
-
-_DB_NAME = project_path + 'wtc/recipes.db'
-
 
 def _create_table_query(*, name: str, fields: dict, constraints=()):
     header = f'CREATE TABLE IF NOT EXISTS {name}\n'
@@ -72,7 +69,7 @@ class Interface:
     """
 
     def __init__(self) -> None:
-        self._executer = _SqlExecuter(_DB_NAME)
+        self._executer = _SqlExecuter(database_path)
         queries = []
 
         tables = (
@@ -143,7 +140,6 @@ class Interface:
             values(?, ?)
             '''
         params = (recipe.title, recipe.url)
-        print("\nDEBUG", recipe, "\n")
         try:
             self._executer.execute_query(query, params)
         except sqlite3.IntegrityError:
@@ -328,8 +324,8 @@ class Interface:
         self.delete_unknown(text_with_unkown)
         self._add_ingr_to_recipe(extracted_ingr, recipe_id)
 
-        logging.info(f'Extracted "{extracted_ingr.name}" \
-            from "{text_with_unkown}"')
+        logging.info(f'Extracted "{extracted_ingr.name}" ' \
+            f'from "{text_with_unkown}"')
 
     def delete_unknown(self, text_with_unknown):
         query = '''

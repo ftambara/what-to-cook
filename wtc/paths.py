@@ -5,6 +5,7 @@ project_path = os.path.join(os.path.dirname(__file__), "../")
 # Modify these if needed
 ingredients_path = project_path + 'user_files/ingredients.txt'
 recipes_path = project_path + 'user_files/recipes.csv'
+database_path = project_path + 'assets/database/recipes.db'
 
 os.makedirs(os.path.dirname(ingredients_path), exist_ok=True)
 
