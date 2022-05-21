@@ -191,6 +191,12 @@ class WtcApp(App):
                 }
             )
             self.review_popup.open()
+            Clock.schedule_once(lambda dt: workaround(), 0.1)
+
+            def workaround():
+                self.review_popup.ids.ingredient_textinput.focus = True
+        else:
+            self.review_popup.dismiss()
 
     def save_ingr_review(self, recipe_id, text_with_unknown, ingr_name):
         self.loader.solve_unknown(
@@ -198,11 +204,13 @@ class WtcApp(App):
         self.load_ingredients()
         self.refresh_search_data()
         self.update_num_pending_ingredients()
+        self.review_next_ingr()
 
-        if self.loader.num_pending_review:
-            self.review_next_ingr()
-        else:
-            self.review_popup.dismiss()
+    def delete_unknown(self, text_with_unknown):
+        self.loader.delete_unknown(text_with_unknown)
+        self.refresh_search_data()
+        self.update_num_pending_ingredients()
+        self.review_next_ingr()
 
     def load_recipes(self):
         successes, *_ = self.loader.load_recipes()

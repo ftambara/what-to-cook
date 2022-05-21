@@ -33,7 +33,7 @@ class IngrParser:
         For example if line = '100g of spring onion' would return
         'spring onion' (if present in ingredients database) instead of just
         'onion'.
-        Return first found match. If no match, raise exception
+        Return first found match. If no match, raise ValueError
         """
 
         # Tokenize line
@@ -82,8 +82,7 @@ class RecipeLog:
 
 class Loader:
     """
-    Handles everything that makes ingredients and recipes go into the database,
-    taking it from where the user interface leaves off.
+    Handles operations that modify the database.
     """
     # TODO recipe update and deletion features
 
@@ -170,7 +169,7 @@ class Loader:
 
     def delete_recipe(self, recipe_id):
         self._interface.delete_recipe(recipe_id)
-    
+
     def get_pending_review(self) -> dict:
         """
         Return all unknowns as a dictionary:
@@ -186,7 +185,7 @@ class Loader:
         """
         Return one ingredient pending review as a tuple:
             (recipe_id, recipe_title, recipe_url, text_with_unknown)
-        
+
         NOTE: Call self.get_same_solution_candidates to get a dictionary
         containing all other unkowns that could be solved using the same
         extracted ingredient.
@@ -195,20 +194,20 @@ class Loader:
         return result
 
     def solve_unknown(self, recipe_id: int,
-                      text_with_unkown: str,
+                      text_with_unknown: str,
                       extracted_ingr: Ingredient):
 
         # Assert that ingredient extraction works for given data.
         self._parser.extract_ingredient(
-            text_with_unkown, [extracted_ingr])
+            text_with_unknown, [extracted_ingr])
 
         # If everything is ok, solve the unknown in the database
-        try: 
-            self._interface.store_ingredient(extracted_ingr)
-        except ValueError:
-            logging.debug(f'"{extracted_ingr.name}" already present.')
+        self._interface.store_ingredient(extracted_ingr)
         self._interface.solve_unknown(
-            recipe_id, text_with_unkown, extracted_ingr)
+            recipe_id, text_with_unknown, extracted_ingr)
+
+    def delete_unknown(self, text_with_unknown):
+        self._interface.delete_unknown(text_with_unknown)
 
     def get_same_solution_candidates(self, extracted_ingr: Ingredient):
 

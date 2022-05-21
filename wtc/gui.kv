@@ -8,6 +8,7 @@
 #:set main_color_clear (244/255, 255/255, 222/255)
 #:set app_white (255/255, 255/255, 255/255)
 #:set app_black (0/255, 0/255, 0/255)
+#:set app_red (245/255, 30/255, 10/255)
 
 
 <ImageButton@ButtonBehavior+Image>:
@@ -218,11 +219,14 @@
             orientation: 'horizontal'
             size_hint: 1, None
             size: self.minimum_size
+            spacing: '10dp'
             TextInput:
-                id: ingredient
+                id: ingredient_textinput
                 color: app_black
                 multiline: False
+                on_text_validate: app.save_ingr_review(root.recipe_id, root.text_with_unknown, root.ids.ingredient_textinput.text)
             Button:
+                id: save_button
                 canvas.before:
                     Color:
                         rgb: main_color
@@ -236,14 +240,34 @@
                 padding: '15dp', '10dp'
                 text: 'Save'
                 color: app_black
-                on_release: app.save_ingr_review(root.recipe_id, root.text_with_unknown, root.ids.ingredient.text)
-        Button:
-            text: 'Cancel'
-            size_hint: None, None
-            size: self.texture_size
-            padding: '15dp', '10dp'
+                on_release: app.save_ingr_review(root.recipe_id, root.text_with_unknown, root.ids.ingredient_textinput.text)
+        BoxLayout:
+            orientation: 'horizontal'
+            spacing: '20dp'
+            size_hint_x: None
+            size: self.minimum_size
             pos_hint: {'center_x': 0.5}
-            on_release: root.dismiss()
+            Button:
+                canvas.before:
+                    Color:
+                        rgb: app_red
+                    Rectangle:
+                        size: self.size
+                        pos: self.pos
+                background_normal: ''
+                background_color: [0]*4
+                size_hint: None, 1
+                size: self.texture_size
+                padding: '15dp', '10dp'
+                text: 'Delete'
+                color: app_white
+                on_release: app.delete_unknown(root.text_with_unknown)
+            Button:
+                size_hint: None, 1
+                size: self.texture_size
+                padding: '15dp', '10dp'
+                text: 'Cancel'
+                on_release: root.dismiss()
 
 
 <SidePanelButton@Button>:

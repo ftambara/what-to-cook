@@ -143,7 +143,7 @@ class Interface:
             values(?, ?)
             '''
         params = (recipe.title, recipe.url)
-
+        print("\nDEBUG", recipe, "\n")
         try:
             self._executer.execute_query(query, params)
         except sqlite3.IntegrityError:
@@ -163,7 +163,11 @@ class Interface:
 
             # Associate all known ingredients to recipe
             for ingr in recipe.ingredients_known:
-                self._add_ingr_to_recipe(ingr, recipe_id)
+                try:
+                    self._add_ingr_to_recipe(ingr, recipe_id)
+                except sqlite3.IntegrityError:
+                    # Duplicated ingredient in recipe
+                    pass
 
     def get_recipes(self, ingr_included: list[Ingredient] = []) -> list[Recipe]:
 
@@ -197,7 +201,7 @@ class Interface:
         recipes = self._executer.execute_query(query)
         dict_ = {(title.lower(), url.lower()): id
                  for id, title, url in recipes}
-        
+
         return dict_[(recipe_title.lower(), recipe_url.lower())]
 
     def delete_recipe(self, recipe_id: int):
@@ -223,7 +227,6 @@ class Interface:
         for query in queries:
             self._executer.execute_query(query, params)
         print(f'\nDeleted {recipe_id=}')
-        
 
     def store_ingredient(self, ingr: Ingredient):
         """Store ingredient into database."""
@@ -322,17 +325,19 @@ class Interface:
         NOTE: Make sure the ingredient is saved first, using store_ingredient
         """
         # Delete text from ingr_unknowns table
-        query = '''
-            DELETE FROM ingr_unknowns
-            WHERE text_containing_ingr = (?)
-            '''
-        params = (text_with_unkown,)
-        self._executer.execute_query(query, params)
-
+        self.delete_unknown(text_with_unkown)
         self._add_ingr_to_recipe(extracted_ingr, recipe_id)
 
         logging.info(f'Extracted "{extracted_ingr.name}" \
             from "{text_with_unkown}"')
+
+    def delete_unknown(self, text_with_unknown):
+        query = '''
+        DELETE FROM ingr_unknowns
+        WHERE text_containing_ingr = (?)
+        '''
+        params = (text_with_unknown,)
+        self._executer.execute_query(query, params)
 
     def _add_ingr_to_recipe(self, ingr: Ingredient, recipe_id: int):
         """Associate ingredient to corresponding recipe"""
