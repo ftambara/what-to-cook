@@ -46,6 +46,18 @@ class IngrReviewPopup(Popup):
         self.recipe_title = data['recipe_title']
         self.text_with_unknown = data['text_with_unknown']
 
+    def alert_wrong(self):
+        saved_title = self.title
+        saved_title_color = self.title_color
+        self.title = 'Verification failure, try a different word.'
+        self.title_color = (0.8, 0.2, 0.1)
+        Clock.schedule_once(lambda dt: scheduled(
+            saved_title, saved_title_color), 3)
+
+        def scheduled(saved_title, saved_title_color):
+            self.title = saved_title
+            self.title_color = saved_title_color
+
 
 class SidePanel(BoxLayout):
     num_pending_ingredients = NumericProperty()
@@ -191,16 +203,20 @@ class WtcApp(App):
                 }
             )
             self.review_popup.open()
-            Clock.schedule_once(lambda dt: workaround(), 0.1)
+            Clock.schedule_once(lambda dt: scheduled(), 0.1)
 
-            def workaround():
+            def scheduled():
                 self.review_popup.ids.ingredient_textinput.focus = True
         else:
             self.review_popup.dismiss()
 
     def save_ingr_review(self, recipe_id, text_with_unknown, ingr_name):
-        self.loader.solve_unknown(
-            recipe_id, text_with_unknown, Ingredient(ingr_name))
+        try:
+            self.loader.solve_unknown(
+                recipe_id, text_with_unknown, Ingredient(ingr_name))
+        except ValueError:
+            self.review_popup.alert_wrong()
+
         self.load_ingredients()
         self.refresh_search_data()
         self.update_num_pending_ingredients()
